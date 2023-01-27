@@ -734,7 +734,7 @@ function M.LoadConfig()
     FsiCommand = "dotnet fsi",
     FsiKeymap = "vscode",
     FsiWindowCommand = "botright 10new",
-    FsiFocusOnSend = true,
+    FsiFocusOnSend = false,
     Backend = "nvim",
     LspAutoSetup = false,
     LspRecommendedColorscheme = true,
@@ -1258,28 +1258,137 @@ local function getFsiCommand()
 
 end
 
---
+function M.OpenFsi(returnFocus)
+  vim.notify("openfsi return focus is " .. tostring(returnFocus))
+  local isNeovim = vim.fn.has('nvim')
+  --"     if bufwinid(s:fsi_buffer) <= 0
+  if vim.fn.bufwinid(fsiBuffer) <= 0 then
+    vim.notify("fsiBuffer id is " .. tostring(fsiBuffer))
+    --"         let fsi_command = s:get_fsi_command()
+    local cmd = getFsiCommand()
+    --"         if exists('*termopen') || exists('*term_start')
+    if vim.fn.exists('*termopen') == true or vim.fn.exists('*term_start') then
+      --"             let current_win = win_getid()
+      local currentWin = vim.fn.win_getid()
+      --"             execute g:fsharp#fsi_window_command
+      vim.fn.execute(M.FsiWindowCommand or 'botright 10new')
+      --"             if s:fsi_width  > 0 | execute 'vertical resize' s:fsi_width | endif
+      if fsiWidth > 0 then vim.fn.execute('vertical resize ' .. fsiWidth) end
+      --"             if s:fsi_height > 0 | execute 'resize' s:fsi_height | endif
+
+      if fsiHeight > 0 then vim.fn.execute('resize ' .. fsiHeight) end
+      --"             " if window is closed but FSI is still alive then reuse it
+      --"             if s:fsi_buffer >= 0 && bufexists(str2nr(s:fsi_buffer))
+      if fsiBuffer >= 0 and vim.fn.bufexists(fsiBuffer) then
+        --"                 exec 'b' s:fsi_buffer
+        vim.fn.cmd('b' .. tostring(fsiBuffer))
+        --"                 normal G
+        vim.cmd("normal G")
+        --"                 if !has('nvim') && mode() == 'n' | execute "normal A" | endif
+        if not isNeovim and vim.api.nvim_get_mode()[1] == 'n' then
+          vim.cmd("normal A")
+        end
+        --"                 if a:returnFocus | call s:win_gotoid_safe(current_win) | endif
+        if returnFocus then winGoToIdSafe(currentWin) end
+        --"             " open FSI: Neovim
+        --"             elseif has('nvim')
+      elseif isNeovim then
+        --"                 let s:fsi_job = termopen(fsi_command)
+        fsiJob = vim.fn.termopen(cmd) or 0
+        --"                 if s:fsi_job > 0
+        if fsiJob > 0 then
+          --"                     let s:fsi_buffer = bufnr("%")
+          fsiBuffer = vim.fn.bufnr(vim.api.nvim_get_current_buf())
+          --"                 else
+        else
+          --"                     close
+          vim.cmd.close()
+          --"                     echom "[FSAC] Failed to open FSI."
+          vim.notify("[Ionide] failed to open FSI")
+          --"                     return -1
+          return -1
+          --"                 endif
+        end
+        --"             " open FSI: Vim
+        --"             else
+      else
+        --"                 let options = {
+        local options = {
+          term_name = "F# Interactive",
+          curwin = 1,
+          term_finish = "close"
+        }
+        --"                 \ "term_name": "F# Interactive",
+
+        --"                 \ "curwin": 1,
+
+        --"                 \ "term_finish": "close"
+
+        --"                 \ }
+
+        --"                 let s:fsi_buffer = term_start(fsi_command, options)
+        fsiBuffer = vim.fn("term_start(" .. M.FsiCommand .. ", " .. vim.inspect(options) .. ")")
+        --"                 if s:fsi_buffer != 0
+        if fsiBuffer ~= 0 then
+          --"                     if exists('*term_setkill') | call term_setkill(s:fsi_buffer, "term") | endif
+          if vim.fn.exists('*term_setkill') == true then vim.fn("term_setkill(" .. fsiBuffer .. [["term"]]) end
+          --"                     let s:fsi_job = term_getjob(s:fsi_buffer)
+          fsiJob = vim.cmd.term_getjob(fsiBuffer)
+          --"                 else
+        else
+          --"                     close
+
+          vim.cmd.close()
+          --"                     echom "[FSAC] Failed to open FSI."
+
+          vim.notify("[Ionide] failed to open FSI")
+          --"                     return -1
+          return -1
+          --"                 endif
+
+        end
+        --"             endif
+
+      end
+      --"             setlocal bufhidden=hide
+
+      vim.opt_local.bufhidden = "hide"
+      --"             normal G
+
+      vim.cmd("normal G")
+      --"             if a:returnFocus | call s:win_gotoid_safe(current_win) | endif
+      if returnFocus then winGoToIdSafe(currentWin) end
+      --"             return s:fsi_buffer
+      return fsiBuffer
+      --"         else
+    else
+      --"             echom "[FSAC] Your (neo)vim does not support terminal".
+      vim.notify("[Ionide] Your neovim doesn't support terminal.")
+      --"             return 0
+      return 0
+      --"         endif
+    end
+    --"     endif
+  end
+  return fsiBuffer
+  --" endfunction
+end
+
 -- function M.OpenFsi(returnFocus)
---   vim.notify("openfsi return focus is " .. tostring(returnFocus))
---
+--   vim.notify("OpenFsi got return focus as " .. vim.inspect(returnFocus))
 --   local isNeovim = vim.fn.has('nvim')
---
---   --"     if bufwinid(s:fsi_buffer) <= 0
---   if vim.fn.bufwinid(fsiBuffer) <= 0 then
---
---     vim.notify("fsiBuffer id is " .. tostring(fsiBuffer))
---     --"         let fsi_command = s:get_fsi_command()
---     local cmd = getFsiCommand()
---     --"         if exists('*termopen') || exists('*term_start')
+--   if not isNeovim then
+--     vim.notify("[Ionide] This version of ionide is for Neovim only. please try www.github.com/ionide/ionide-vim")
+--   end
 --     if vim.fn.exists('*termopen') == true or vim.fn.exists('*term_start') then
 --       --"             let current_win = win_getid()
 --       local currentWin = vim.fn.win_getid()
+--     vim.notify("OpenFsi currentWin = " .. vim.inspect(currentWin))
 --       --"             execute g:fsharp#fsi_window_command
 --       vim.fn.execute(M.FsiWindowCommand or 'botright 10new')
---       --"             if s:fsi_width  > 0 | execute 'vertical resize' s:fsi_width | endif
+--       -- "             if s:fsi_width  > 0 | execute 'vertical resize' s:fsi_width | endif
 --       if fsiWidth > 0 then vim.fn.execute('vertical resize ' .. fsiWidth) end
 --       --"             if s:fsi_height > 0 | execute 'resize' s:fsi_height | endif
---
 --       if fsiHeight > 0 then vim.fn.execute('resize ' .. fsiHeight) end
 --       --"             " if window is closed but FSI is still alive then reuse it
 --       --"             if s:fsi_buffer >= 0 && bufexists(str2nr(s:fsi_buffer))
@@ -1289,123 +1398,31 @@ end
 --         --"                 normal G
 --
 --         vim.cmd("normal G")
---         --"                 if !has('nvim') && mode() == 'n' | execute "normal A" | endif
---
---         if not isNeovim and vim.api.nvim_get_mode()[1] == 'n' then
---           vim.cmd("normal A")
---         end
 --         --"                 if a:returnFocus | call s:win_gotoid_safe(current_win) | endif
 --         if returnFocus then winGoToIdSafe(currentWin) end
 --         --"             " open FSI: Neovim
 --         --"             elseif has('nvim')
---       elseif isNeovim then
---         --"                 let s:fsi_job = termopen(fsi_command)
---         fsiJob = vim.fn.termopen(cmd) or 0
---         --"                 if s:fsi_job > 0
---         if fsiJob > 0 then
---           --"                     let s:fsi_buffer = bufnr("%")
---           fsiBuffer = vim.fn.bufnr(vim.api.nvim_get_current_buf())
---           --"                 else
---         else
---           --"                     close
---           vim.cmd.close()
---           --"                     echom "[FSAC] Failed to open FSI."
---           vim.notify("[Ionide] failed to open FSI")
---           --"                     return -1
---           return -1
---           --"                 endif
---         end
---         --"             " open FSI: Vim
---         --"             else
+--   local bufWinid = vim.fn.bufwinid(fsiBuffer) or -1
+--   vim.notify("OpenFsi bufWinid = " .. vim.inspect(bufWinid))
+--   if bufWinid <= 0 then
+--     local cmd = getFsiCommand()
+--     if isNeovim then
+--       fsiJob = vim.fn.termopen(cmd)
+--       vim.notify("OpenFsi fsiJob is now  = " .. vim.inspect(fsiJob))
+--       if fsiJob > 0 then
+--         fsiBuffer = vim.fn.bufnr(vim.api.nvim_get_current_buf())
 --       else
---         --"                 let options = {
---         local options = {
---           term_name = "F# Interactive",
---           curwin = 1,
---           term_finish = "close"
---         }
---         --"                 \ "term_name": "F# Interactive",
---
---         --"                 \ "curwin": 1,
---
---         --"                 \ "term_finish": "close"
---
---         --"                 \ }
---
---         --"                 let s:fsi_buffer = term_start(fsi_command, options)
---         fsiBuffer = vim.fn("term_start(" .. M.FsiCommand .. ", " .. vim.inspect(options) .. ")")
---         --"                 if s:fsi_buffer != 0
---         if fsiBuffer ~= 0 then
---           --"                     if exists('*term_setkill') | call term_setkill(s:fsi_buffer, "term") | endif
---           if vim.fn.exists('*term_setkill') == true then vim.fn("term_setkill(" .. fsiBuffer .. [["term"]]) end
---           --"                     let s:fsi_job = term_getjob(s:fsi_buffer)
---           fsiJob = vim.cmd.term_getjob(fsiBuffer)
---           --"                 else
---         else
---           --"                     close
---
---           vim.cmd.close()
---           --"                     echom "[FSAC] Failed to open FSI."
---
---           vim.notify("[Ionide] failed to open FSI")
---           --"                     return -1
---           return -1
---           --"                 endif
---
---         end
---         --"             endif
---
+--         vim.cmd.close()
+--         vim.notify("[Ionide] failed to open FSI")
+--         return -1
 --       end
---       --"             setlocal bufhidden=hide
---
---       vim.opt_local.bufhidden = "hide"
---       --"             normal G
---
---       vim.cmd("normal G")
---       --"             if a:returnFocus | call s:win_gotoid_safe(current_win) | endif
---       if returnFocus then winGoToIdSafe(currentWin) end
---       --"             return s:fsi_buffer
---       return fsiBuffer
---       --"         else
---     else
---       --"             echom "[FSAC] Your (neo)vim does not support terminal".
---       vim.notify("[Ionide] Your neovim doesn't support terminal.")
---       --"             return 0
---       return 0
---       --"         endif
 --     end
---     --"     endif
 --   end
+--   vim.notify("[Ionide] This version of ionide is for Neovim only. please try www.github.com/ionide/ionide-vim")
+--   if returnFocus then winGoToIdSafe(currentWin) end
 --   return fsiBuffer
---   --" endfunction
 -- end
-
-function M.OpenFsi(returnFocus)
-  local isNeovim = vim.fn.has('nvim')
-  local currentWin = vim.fn.win_getid()
-  local bufWinid = vim.fn.bufwinid(fsiBuffer) or 0
-  if bufWinid <= 0 then
-    local cmd = getFsiCommand()
-    if isNeovim then
-      fsiJob = vim.fn.termopen(cmd) or 0
-      if fsiJob > 0 then
-        if returnFocus then winGoToIdSafe(currentWin) end
-        fsiBuffer = vim.fn.bufnr(vim.api.nvim_get_current_buf())
-        return fsi_buffer
-      else
-        vim.cmd.close()
-        vim.notify("[Ionide] failed to open FSI")
-        if returnFocus then winGoToIdSafe(currentWin) end
-        return -1
-      end
-    else
-      vim.notify("[Ionide] This version of ionide is for Neovim only. please try www.github.com/ionide/ionide-vim")
-      if returnFocus then winGoToIdSafe(currentWin) end
-      return fsiBuffer
-    end
-  end
-end
-
+--
 --"
 --" function! fsharp#toggleFsi()
 --"     let fsiWindowId = bufwinid(s:fsi_buffer)
@@ -1519,7 +1536,14 @@ end
 
 function M.SendFsi(text)
   vim.notify("[Ionide] Text being sent to FSI:\n" .. text)
-  if M.OpenFsi(not M.FsiFocusOnSend or false) > 0 then
+  local openResult = M.OpenFsi(not M.FsiFocusOnSend or false)
+  vim.notify("[Ionide] result of openfsi function is " .. vim.inspect(openResult))
+  if not openResult then
+    openResult = 1
+    vim.notify("[Ionide] changing result to 1 and hoping for the best. lol. " .. vim.inspect(openResult))
+  end
+
+  if openResult > 0 then
     if vim.fn.has('nvim') then
       vim.fn.chansend(fsiJob, text .. "\n" .. ";;" .. "\n")
     else
@@ -1588,3 +1612,4 @@ function M.SetKeymaps()
 end
 
 return M
+
