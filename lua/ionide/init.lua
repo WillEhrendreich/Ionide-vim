@@ -1383,16 +1383,19 @@ end
 function M.OpenFsi(returnFocus)
   local isNeovim = vim.fn.has('nvim')
   local currentWin = vim.fn.win_getid()
-  local bufWinid = vim.fn.bufwinid(fsiBuffer) or -1
+  local bufWinid = vim.fn.bufwinid(fsiBuffer) or 0
   if bufWinid <= 0 then
     local cmd = getFsiCommand()
     if isNeovim then
       fsiJob = vim.fn.termopen(cmd) or 0
       if fsiJob > 0 then
+        if returnFocus then winGoToIdSafe(currentWin) end
         fsiBuffer = vim.fn.bufnr(vim.api.nvim_get_current_buf())
+        return fsi_buffer
       else
         vim.cmd.close()
         vim.notify("[Ionide] failed to open FSI")
+        if returnFocus then winGoToIdSafe(currentWin) end
         return -1
       end
     else
@@ -1497,7 +1500,7 @@ end
 --"
 function M.ResetFsi()
   M.QuitFsi()
-  M.OpenFsi(true)
+  M.OpenFsi(false)
 end
 
 --" function! fsharp#sendFsi(text)
