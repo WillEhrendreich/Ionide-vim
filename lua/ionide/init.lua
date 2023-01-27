@@ -903,7 +903,7 @@ vim.filetype.add(
           vim.bo[bufnr].ro = false
           vim.b[bufnr].readonly = false
           vim.bo[bufnr].commentstring = "<!--%s-->"
-          vim.bo[bufnr].comments = "<!--,e:-->"
+          -- vim.bo[bufnr].comments = "<!--,e:-->"
           vim.opt_local.foldlevelstart = 99
           vim.w.fdm = 'syntax'
         end
