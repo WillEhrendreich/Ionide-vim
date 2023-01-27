@@ -1383,7 +1383,8 @@ end
 function M.OpenFsi(returnFocus)
   local isNeovim = vim.fn.has('nvim')
   local currentWin = vim.fn.win_getid()
-  if vim.fn.bufwinid(fsiBuffer) <= 0 then
+  local bufWinid = vim.fn.bufwinid(fsiBuffer) or -1
+  if bufWinid <= 0 then
     local cmd = getFsiCommand()
     if isNeovim then
       fsiJob = vim.fn.termopen(cmd) or 0
