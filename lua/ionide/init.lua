@@ -3,8 +3,8 @@ local validate = vim.validate
 local api = vim.api
 local uc = vim.api.nvim_create_user_command
 local lsp = vim.lsp
-local log = require('vim.lsp.log')
-local protocol = require('vim.lsp.protocol')
+-- local log = require('vim.lsp.log')
+-- local protocol = require('vim.lsp.protocol')
 local tbl_extend = vim.tbl_extend
 
 local function try_require(...)
@@ -13,6 +13,17 @@ local function try_require(...)
   return nil
 end
 
+local M = {}
+local callbacks = {}
+M.CallBackResults = {}
+M.workspace_folders = {}
+M.Projects = {}
+M.NvimSettings = {}
+M.DefaultServerSettings = {}
+M.DefaultLspConfig = {}
+M.MergedConfig = {}
+M.PassedInConfig = {}
+
 local lspconfig_is_present = true
 local util = try_require('lspconfig.util')
 if util == nil then
@@ -20,31 +31,29 @@ if util == nil then
   util = require('ionide.util')
 end
 
-local M = {}
-
-local callbacks = {}
-M.CallBackResults = {}
-
-M.workspace_folders = {}
-M.RegisterCallback = function(fn)
-  if M.Backend ~= 'nvim' then
-    return -1
-  end
+---@param fn function|nil See |lsp-handler|
+---@returns int key
+--- generates a key to look up the function call and assigns it to callbacks[newRandomIntKeyHere]
+--- then returns the key it created
+function M.RegisterCallback(fn)
   local rnd = os.time()
-
   callbacks[rnd] = fn
   M.CallBackResults[rnd] = fn
   return rnd
 end
 
-M.ResolveCallback = function(key, arg)
-  if M.Backend ~= 'nvim' then
-    return
-  end
+function M.ResolveCallback(key, arg)
   if callbacks[key] then
     local callback = callbacks[key]
-    callback(arg)
+    local result = callback(arg)
+    if result then
+
+      vim.inspect("result of callback with key of " .. key .. " is\n" .. vim.inspect(result))
+    end
     callbacks[key] = nil
+  else
+    vim.inspect("no callback found in the Ionide callbacks collection with the key " .. key)
+
   end
 end
 
@@ -52,7 +61,7 @@ end
 --    return { 'Content': a:content }
 -- endfunction
 
-M.PlainNotification = function(content)
+function M.PlainNotification(content)
   return { Content = content }
 end
 
@@ -69,7 +78,7 @@ end
 --     return { 'Uri': uri }
 -- endfunction
 
-M.TextDocumentIdentifier = function(path)
+function M.TextDocumentIdentifier(path)
   local usr_ss_opt = vim.o.shellslash
   vim.o.shellslash = true
   local uri = vim.fn.fnamemodify(path, ":p")
@@ -86,7 +95,7 @@ end
 --     return { 'Line': a:line, 'Character': a:character }
 -- endfunction
 
-M.Position = function(line, character)
+function M.Position(line, character)
   return { Line = line, Character = character }
 end
 
@@ -97,7 +106,7 @@ end
 --         \ }
 -- endfunction
 
-M.TextDocumentPositionParams = function(documentUri, line, character)
+function M.TextDocumentPositionParams(documentUri, line, character)
   return {
     TextDocument = M.TextDocumentIdentifier(documentUri),
     Position = M.Position(line, character)
@@ -111,7 +120,7 @@ end
 --         \ }
 -- endfunction
 
-M.DocumentationForSymbolRequest = function(xmlSig, assembly)
+function M.DocumentationForSymbolRequest(xmlSig, assembly)
   return {
     XmlSig = xmlSig,
     Assembly = assembly
@@ -122,7 +131,7 @@ end
 --     return { 'Project': s:TextDocumentIdentifier(a:projectUri) }
 -- endfunction
 
-M.ProjectParms = function(projectUri)
+function M.ProjectParms(projectUri)
   return {
     Project = M.TextDocumentIdentifier(projectUri),
   }
@@ -137,7 +146,7 @@ end
 -- endfunction
 
 
-M.WorkspacePeekRequest = function(directory, deep, excludedDirs)
+function M.WorkspacePeekRequest(directory, deep, excludedDirs)
   return {
     Directory = string.gsub(directory, '\\', '/'),
     Deep = deep,
@@ -149,7 +158,7 @@ end
 --     return { 'Query': a:query }
 -- endfunction
 
-M.FsdnRequest = function(query)
+function M.FsdnRequest(query)
   return { Query = query }
 end
 
@@ -161,7 +170,7 @@ end
 --     return { 'TextDocuments': prm }
 -- endfunction
 
-M.WorkspaceLoadParms = function(files)
+function M.WorkspaceLoadParms(files)
   local prm = {}
   for _, file in ipairs(files) do
     table.insert(prm, M.TextDocumentIdentifier(file))
@@ -197,9 +206,13 @@ local function buildConfigKeys(camels)
   return keys
 end
 
-M.Call = function(method, params, callback_key)
-  -- local register = M.RegisterCallback(callback_key)
-  local handler = function(err, result, ctx, config)
+function M.Call(method, params, callback_key)
+  if not callbacks[callback_key] then
+
+    callback_key = M.RegisterCallback(method)
+
+  end
+  local handler = function(err, result, ctx, _)
     vim.notify("result is: " .. vim.inspect({
       result = vim.inspect(result or "NO result"),
       err = vim.inspect(err or "NO err"),
@@ -207,7 +220,7 @@ M.Call = function(method, params, callback_key)
       bufnr = vim.inspect(ctx.bufnr or "NO ctx clientid  ")
     }))
     if result ~= nil then
-      -- vim.notify("result is: " .. vim.inspect(result))
+      vim.notify("result is: " .. vim.inspect(result))
       M.ResolveCallback(callback_key, {
         result = result,
         err = err,
@@ -218,23 +231,28 @@ M.Call = function(method, params, callback_key)
   end
   -- if method == "fsharp/compilerLocation" then
   vim.notify("requesting method called '" ..
-    method .. "' with " .. vim.inspect(params or "NO PARAMS Given") .. "with callback key of: " .. callback_key)
+    vim.pretty_print(vim.inspect(method)) ..
+    "' with params of " .. vim.inspect(params or " NO PARAMS Given ") .. " with callback key of: " .. callback_key)
   -- end
+  ---@returns 2-tuple:
+  ---  - Map of client-id:request-id pairs for all successful requests.
+  ---  - Function which can be used to cancel all the requests. You could instead
+  ---    iterate all clients and call their `cancel_request()` methods.
+  -- function lsp.buf_request(bufnr, method, params, handler)
   local request = lsp.buf_request(0, method, params, handler)
   if request then
-    -- vim.notify("request gave : " .. vim.inspect(request))
-    if callbacks[request] then
-      -- vim.notify("request was found in callbacks: " .. vim.inspect(callbacks[request]))
+    vim.notify("request gave : " .. vim.pretty_print(vim.inspect(request)))
+    if callbacks[callback_key] then
+      vim.notify("request was found in callbacks: " .. vim.inspect(callbacks[callback_key]))
     end
   end
 end
 
-M.Notify = function(method, params)
+function M.Notify(method, params)
   lsp.buf_notify(0, method, params)
 end
 
-
-M.Signature = function(filePath, line, character, cont)
+function M.Signature(filePath, line, character, cont)
   return M.Call('fsharp/signature', M.TextDocumentPositionParams(filePath, line, character),
     cont)
 end
@@ -248,7 +266,7 @@ function M.LineLens(projectPath, cont)
   return M.Call('fsharp/lineLens', M.ProjectParms(projectPath), cont)
 end
 
-M.CompilerLocation = function(cont)
+function M.CompilerLocation(cont)
   return M.Call('fsharp/compilerLocation', {}, cont)
 end
 
@@ -259,7 +277,7 @@ uc('IonideCompilerLocation',
     -- vim.notify(vim.inspect(rcb()))
     local key = os.time()
     vim.notify("Calling for CompilerLocations with timekey of " .. vim.inspect(key))
-    return M.Call('fsharp/compilerLocation', M.PlainNotification({}), key)
+    M.Call('fsharp/compilerLocation', {}, key)
     -- M.CompilerLocation(key)
     -- vim.notify(vim.inspect(M.Call('fsharp/compilerLocation', {}, os.time())))
   end
@@ -340,8 +358,11 @@ end
 --     Debug: DebugDto option }
 --
 -- type FSharpConfigRequest = { FSharp: FSharpConfigDto }
-local function getServerConfig()
-  local config = {}
+
+
+
+function M.LoadDefaultServerSettings()
+  local FSharpSettings = {}
   local camels = {
     --   { AutomaticWorkspaceInit: bool option
     --AutomaticWorkspaceInit = false
@@ -354,7 +375,7 @@ local function getServerConfig()
     { key = "ExcludeProjectDirectories", default = {} },
     --     KeywordsAutocomplete: bool option
     -- false
-    { key = "KeywordsAutocomplete", default = true },
+    { key = "keywordsAutocomplete", default = true },
     --     ExternalAutocomplete: bool option
     --false
     { key = "ExternalAutocomplete", default = false },
@@ -410,7 +431,7 @@ local function getServerConfig()
     { key = "EnableAnalyzers", default = true },
     --     AnalyzersPath: string[] option
     --
-    { key = "AnalyzersPath" },
+    { key = "AnalyzersPath", default = {} },
     --     DisableInMemoryProjectReferences: bool option
     --false|
     --
@@ -424,7 +445,7 @@ local function getServerConfig()
     { key = "UseSdkScripts", default = true },
     --     DotNetRoot: string option  Environment.dotnetSDKRoot.Value.FullName
     --
-    { key = "DotNetRoot", default =
+    { key = "dotNetRoot", default =
 
     (function()
       local function find_executable(name)
@@ -464,10 +485,10 @@ local function getServerConfig()
 
     --     FSIExtraParameters: string[] option
     --     j
-    { key = "FSIExtraParameters", default = {} },
+    { key = "fsiExtraParameters", default = {} },
     --     FSICompilerToolLocations: string[] option
     --
-    { key = "FSICompilerToolLocations", default = {} },
+    { key = "fsiCompilerToolLocations", default = {} },
     --     TooltipMode: string option
     --TooltipMode = "full"
     { key = "TooltipMode", default = "full" },
@@ -490,12 +511,8 @@ local function getServerConfig()
     --   References: {| Enabled: bool option |} option }
     { key = "CodeLenses",
       default = {
-        Signature = {
-          Enabled = true
-        },
-        References = {
-          Enabled = true
-        },
+        Signature = { Enabled = true },
+        References = { Enabled = true },
       },
     },
     --     InlayHints: InlayHintDto option
@@ -512,7 +529,7 @@ local function getServerConfig()
       default = {
         typeAnnotations = true,
         parameterNames = true,
-        disableLongTooltip = true,
+        disableLongTooltip = false,
       },
     },
 
@@ -540,6 +557,7 @@ local function getServerConfig()
 
   }
 
+  if M.UseRecommendedServerConfig == true then vim.notify("[Ionide] - UseRecommendedServerConfig was true. All settings set to defaults.  ") end
   local keys = buildConfigKeys(camels)
   for _, key in ipairs(keys) do
 
@@ -547,49 +565,62 @@ local function getServerConfig()
     -- M[key.snake] = key.default
     -- end
 
-    if not M[key.camel] then
-      M[key.camel] = key.default
-    end
+    -- if not M[key.camel] then M[key.camel] = key.default end
+    -- if not M.Configs[key.camel] then M.Configs[key.camel] = key.default end
     -- if not vim.g[key.snake] then
     --   vim.g[key.snake] = key.default or ""
     -- end
-    if not config[key.camel] then
-      config[key.camel] = key.default
+    if not FSharpSettings[key.camel] then
+      FSharpSettings[key.camel] = key.default
     end
-    if vim.g["fsharp#" .. key.snake] then
-      config[key.camel] = vim.g["fsharp#" .. key.snake]
-    elseif vim.g["fsharp#" .. key.camel] then
-      config[key.camel] = vim.g["fsharp#" .. key.snake]
-    elseif key.default and M.UseRecommendedServerConfig then
-      vim.g["fsharp#" .. key.camel] = key.default
-      vim.g["fsharp#" .. key.snake] = key.default
-      config[key.camel] = key.default
+    -- if vim.g["fsharp#" .. key.snake] then
+    -- config[key.camel] = vim.g["fsharp#" .. key.snake]
+    -- M.Configs[key.camel] = vim.g["fsharp#" .. key.snake]
+    -- elseif vim.g["fsharp#" .. key.camel] then
+    -- config[key.camel] = vim.g["fsharp#" .. key.camel]
+    -- M.Configs[key.camel] = vim.g["fsharp#" .. key.camel]
+    if key.default and M.UseRecommendedServerConfig then
+      -- vim.g["fsharp#" .. key.camel] = key.default
+      -- vim.g["fsharp#" .. key.snake] = key.default
+      FSharpSettings[key.camel] = key.default
+      -- M.Configs[key.camel] = key.default
     end
   end
   -- vim.notify("ionide config is " .. vim.inspect(config))
-  return config
+  return FSharpSettings
 end
 
-function M.UpdateServerConfig()
+function M.UpdateServerConfig(newSettingsTable)
 
-  local fsharp = getServerConfig()
+  --  local input = vim.fn.input({ prompt = "Attach your debugger, to process " .. vim.inspect(vim.fn.getpid()) })
+  local n = newSettingsTable or M.PassedInConfig["settings"].FSharp or {}
+  local defaults = M.DefaultServerSettings
+  local mergedSettings = vim.tbl_deep_extend("keep", n, defaults)
+  local oldMergedSettings = M.MergedConfig.settings
   -- vim.notify("ionide config is " .. vim.inspect(fsharp))
-  local settings = { settings = { FSharp = fsharp } }
+  if not M.PassedInConfig["settings"] then
+    M.PassedInConfig["settings"] = { FSharp = mergedSettings }
+  else
+    local newPassedIn = vim.tbl_deep_extend("keep", { FSharp = mergedSettings }, oldMergedSettings)
+    M.PassedInConfig["settings"] = newPassedIn
+  end
+  local settings = { settings = { FSharp = mergedSettings } }
+  local mergedConfig = vim.tbl_deep_extend("keep", M.PassedInConfig, M.MergedConfig)
+  M.MergedConfig = mergedConfig
   M.Notify("workspace/didChangeConfiguration", settings)
 end
 
-local addThenSort = function(value, tbl)
+function M.AddThenSort(value, tbl)
   if not vim.tbl_contains(tbl, value) then
     table.insert(tbl, value)
-    table.sort(tbl)
+    -- table.sort(tbl)
   end
   -- print("after sorting table, it now looks like this : " .. vim.inspect(tbl))
   return tbl
 end
 
-
 --see: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_documentHighlight
-function M.HandleDocumentHighlight(range, kind)
+function M.HandleDocumentHighlight(range, _)
   local u = require("vim.lsp.util")
   u.buf_highlight_references(0, range or {}, "utf-16")
 end
@@ -601,19 +632,21 @@ function M.HandleNotifyWorkspace(payload)
     if content.Kind == 'projectLoading' then
       -- vim.notify("[Ionide] Loading " .. content.Data.Project)
       -- print("[Ionide] now calling AddOrUpdateThenSort on table  " .. vim.inspect(Workspace))
-      M.workspace_folders = addThenSort(content.Data.Project, M.workspace_folders)
+      M.Projects = M.AddThenSort(content.Data.Project, M.Projects)
+      local dir = vim.fs.dirname(content.Data.Project)
+      M.workspace_folders = M.AddThenSort(dir, M.workspace_folders)
       -- print("after attempting to reassign table value it looks like this : " .. vim.inspect(Workspace))
     elseif content.Kind == 'workspaceLoad' and content.Data.Status == 'finished' then
       -- print("[Ionide] calling updateServerConfig ... ")
       -- print("[Ionide] before calling updateServerconfig, workspace looks like:   " .. vim.inspect(Workspace))
       M.UpdateServerConfig()
       -- print("[Ionide] after calling updateServerconfig, workspace looks like:   " .. vim.inspect(Workspace))
-      if #M.workspace_folders > 0 then
-        if #M.workspace_folders > 1 then
+      if #M.Projects > 0 then
+        if #M.Projects > 1 then
           vim.notify("[Ionide] Workspace loaded " ..
-            #M.workspace_folders .. " projects:\n" .. vim.inspect(M.workspace_folders))
+            #M.Projects .. " projects:\n" .. vim.inspect(M.Projects))
         else
-          vim.notify("[Ionide] Workspace loaded project:\n" .. vim.inspect(M.workspace_folders))
+          vim.notify("[Ionide] Workspace loaded project:\n" .. vim.inspect(M.Projects))
         end
       else
         vim.notify("[Ionide] Workspace is empty! Something went wrong. ")
@@ -622,10 +655,10 @@ function M.HandleNotifyWorkspace(payload)
   end
 end
 
-function M.HandleCompilerLocationn(result)
-  -- vim.notify("handling compilerLocation response\n" .. "result is: \n" .. vim.inspect(result or "Nothing came back from the server.."))
+function M.HandleCompilerLocation(result)
   vim.notify("handling compilerLocation response\n" ..
-    "result is: \n" .. vim.inspect(vim.json.decode(result.content) or "Nothing came back from the server.."))
+    "result is: \n" .. vim.inspect(result or "Nothing came back from the server.."))
+  -- vim.notify("handling compilerLocation response\n" .. "result is: \n" .. vim.inspect(vim.json.decode(result.content) or "Nothing came back from the server.."))
   -- local content = vim.json.decode(payload.content)
   -- if content then
 
@@ -661,7 +694,12 @@ function M.CreateHandlers()
   local r = {}
   for method, func_name in pairs(h) do
     local handler = function(err, params, ctx, _config)
+      -- local handler = function(_, params, _, _)
 
+      if func_name == "HandleCompilerLocation" then
+        vim.notify("handling compiler location request, here are the params \n" ..
+          vim.inspect({ err or "", params or "", ctx or "", _config or "" }))
+      end
 
       -- if err then
       --   -- LSP spec:
@@ -724,18 +762,178 @@ function M.OnFSProjSave()
   end
 end
 
-function M.LoadConfig()
-  local generalConfigs = {
+function M.ShowConfigsFromServerRequest()
+  M.Call("workspace/workspaceFolders", {})
+end
+
+function M.ShowConfigs()
+  vim.inspect(M.MergedConfig)
+end
+
+-- Parameters: ~
+--   • {name}     Name of the new user command. Must begin with an uppercase
+--                letter.
+--   • {command}  Replacement command to execute when this user command is
+--                executed. When called from Lua, the command can also be a
+--                Lua function. The function is called with a single table
+--                argument that contains the following keys:
+--                • name: (string) Command name
+--                • args: (string) The args passed to the command, if any
+--                  |<args>|
+--                • fargs: (table) The args split by unescaped whitespace
+--                  (when more than one argument is allowed), if any
+--                  |<f-args>|
+--                • bang: (boolean) "true" if the command was executed with a
+--                  ! modifier |<bang>|
+--                • line1: (number) The starting line of the command range
+--                  |<line1>|
+--                • line2: (number) The final line of the command range
+--                  |<line2>|
+--                • range: (number) The number of items in the command range:
+--                  0, 1, or 2 |<range>|
+--                • count: (number) Any count supplied |<count>|
+--                • reg: (string) The optional register, if specified |<reg>|
+--                • mods: (string) Command modifiers, if any |<mods>|
+--                • smods: (table) Command modifiers in a structured format.
+--                  Has the same structure as the "mods" key of
+--                  |nvim_parse_cmd()|.
+--   • {opts}     Optional command attributes. See |command-attributes| for
+--                more details. To use boolean attributes (such as
+--                |:command-bang| or |:command-bar|) set the value to "true".
+--                In addition to the string options listed in
+--                |:command-complete|, the "complete" key also accepts a Lua
+--                function which works like the "customlist" completion mode
+--                |:command-completion-customlist|. Additional parameters:
+--                • desc: (string) Used for listing the command when a Lua
+--                  function is used for {command}.
+--                • force: (boolean, default true) Override any previous
+--                  definition.
+--                • preview: (function) Preview callback for 'inccommand'
+--                  |:command-preview|
+uc("IonideShowConfigs", M.ShowConfigs, {})
+
+
+function M.LoadNvimSettings()
+  local result = {}
+  local s = {
     FsautocompleteCommand = { "fsautocomplete", "--adaptive-lsp-server-enabled", "-v" },
-    UseRecommendedServerConfig = true,
+    UseRecommendedServerConfig = false,
     AutomaticWorkspaceInit = true,
     AutomaticReloadWorkspace = true,
     ShowSignatureOnCursorMove = true,
-    FsiCommand = "dotnet fsi",
+    FsiCommand =
+
+    (function()
+
+      local function determineFsiPath(useNetCore, ifNetFXUseAnyCpu)
+        local pf, exe, arg, fsiExe
+        if useNetCore == true then
+          pf = os.getenv("ProgramW6432")
+          if pf == nil or pf == "" then
+            pf = os.getenv("ProgramFiles")
+          end
+          exe = pf .. "/dotnet/dotnet.exe"
+          arg = "fsi"
+          if not os.rename(exe, exe) then
+            vim.notify("Could Not Find fsi.exe: " .. exe)
+          end
+          return exe .. " " .. arg
+        else
+          local function fsiExeName()
+            local any = ifNetFXUseAnyCpu or true
+            if any then
+              return "fsiAnyCpu.exe"
+              -- elseif runtime.architecture == "Arm64" then
+              --   return "fsiArm64.exe"
+            else
+              return "fsi.exe"
+            end
+          end
+
+          -- - path (string): Path to begin searching from. If
+          --        omitted, the |current-directory| is used.
+          -- - upward (boolean, default false): If true, search
+          --          upward through parent directories. Otherwise,
+          --          search through child directories
+          --          (recursively).
+          -- - stop (string): Stop searching when this directory is
+          --        reached. The directory itself is not searched.
+          -- - type (string): Find only files ("file") or
+          --        directories ("directory"). If omitted, both
+          --        files and directories that match {names} are
+          --        included.
+          -- - limit (number, default 1): Stop the search after
+          --         finding this many matches. Use `math.huge` to
+          --         place no limit on the number of matches.
+
+          local function determineFsiRelativePath(name)
+            local find = vim.fs.find({ name },
+              { path = vim.fn.expand("%:h"), upward = false, type = "file", limit = 1 })
+            if vim.tbl_isempty(find) then
+              return ""
+            else
+              return find
+            end
+          end
+
+          local name = fsiExeName()
+          local path = determineFsiRelativePath(name)
+          if not path == "" then
+            fsiExe = path
+          else
+            local fsbin = os.getenv("FSharpBinFolder")
+            if fsbin == nil or fsbin == "" then
+              local lastDitchEffortPath =
+              vim.fs.find({ name },
+                { path = "C:/Program Files (x86)/Microsoft Visual Studio/", upward = false, type = "file", limit = 1 })
+              if not lastDitchEffortPath then
+                fsiExe = "Could not find FSI"
+              else
+                fsiExe = lastDitchEffortPath
+              end
+            else
+              fsiExe = fsbin .. "/Tools/" .. name
+            end
+          end
+          return fsiExe
+        end
+      end
+
+      local function shouldUseAnyCpu()
+        local uname = vim.api.nvim_call_function("system", { "uname -m" })
+        local architecture = uname:gsub("\n", "")
+        if architecture == "" then
+          local output = vim.api.nvim_call_function("system", { "cmd /c echo %PROCESSOR_ARCHITECTURE%" })
+          architecture = output:gsub("\n", "")
+        end
+        if string.match(architecture, "64") then
+          return true
+        else
+          return false
+        end
+      end
+
+      local useSdkScripts = false
+      if M.PassedInConfig.Settings then
+        if M.PassedInConfig.Settings.FSharp then
+          if M.PassedInConfig.Settings.FSharp.UseSdkScripts then
+            useSdkScripts = M.PassedInConfig.Settings.FSharp.UseSdkScripts
+          end
+        end
+      end
+
+      if M.DefaultServerSettings then
+        local ds = M.DefaultServerSettings
+        if ds.UseSdkScripts then
+          useSdkScripts = ds.UseSdkScripts
+        end
+      end
+      local useAnyCpu = shouldUseAnyCpu()
+      return determineFsiPath(useSdkScripts, useAnyCpu)
+    end)(),
     FsiKeymap = "vscode",
     FsiWindowCommand = "botright 10new",
     FsiFocusOnSend = false,
-    Backend = "nvim",
     LspAutoSetup = false,
     LspRecommendedColorscheme = true,
     LspCodelens = true,
@@ -746,14 +944,18 @@ function M.LoadConfig()
     FsiKeymapToggle = "<M-@>",
 
   }
-  for key, v in pairs(generalConfigs) do
-    local k = toSnakeCase(key)
-    if not vim.g["fsharp#" .. k] then
-      vim.g["fsharp#" .. k] = v
-    end
-    if not M[k] then M[k] = vim.g["fsharp#" .. k] end
+  -- for key, v in pairs(generalConfigs) do
+  for k, v in pairs(s) do
+    -- local k = toSnakeCase(key)
+    -- if not vim.g["fsharp#" .. k] then
+    -- vim.g["fsharp#" .. k] = v
+    -- end
+    if not result[k] then result[k] = v end
+    -- if not M.Configs[k] then M.Configs[k] = v end
   end
-  return getServerConfig()
+
+
+  return result
 end
 
 -- function! fsharp#showSignature()
@@ -770,7 +972,7 @@ end
 -- endfunction
 
 
-M.ShowSignature = function()
+function M.ShowSignature()
   local cbShowSignature = function(result)
     if result then
       if result.result then
@@ -798,17 +1000,14 @@ end
 --     endif
 -- endfunction
 --
-M.OnCursorMove = function()
+function M.OnCursorMove()
   if M.ShowSignatureOnCursorMove then
     M.ShowSignature()
   end
 end
 
-
-M.RegisterAutocmds = function()
-  --     if g:fsharp#backend == 'nvim' && g:fsharp#lsp_codelens
-  if M.Backend == 'nvim' and (M.LspCodelens == true or M.LspCodelens == 1) then
-    -- print("fsharp.backend is nvim and lsp_codelens is true.. ")
+function M.RegisterAutocmds()
+  if (M.LspCodelens == true or M.LspCodelens == 1) then
     local autocmd = vim.api.nvim_create_autocmd
     local grp = vim.api.nvim_create_augroup
 
@@ -829,7 +1028,12 @@ M.RegisterAutocmds = function()
   end
 end
 
-M.Initialize = function()
+function M.Initialize()
+  if not vim.fn.has("nvim") then
+    print 'WARNING - This version of Ionide is only for NeoVim. please try Ionide/Ionide-Vim instead. '
+    return
+  end
+
   print 'Ionide Initializing'
   print 'Ionide calling updateServerConfig...'
   M.UpdateServerConfig()
@@ -840,7 +1044,7 @@ M.Initialize = function()
   print 'Ionide Initialized'
 end
 
-local local_root_dir = function(n)
+function M.GitFirstRootDir(n)
   local root
   root = util.find_git_ancestor(n)
   root = root or util.root_pattern("*.sln")(n)
@@ -849,44 +1053,44 @@ local local_root_dir = function(n)
   return root
 end
 
-local function get_default_config()
-  local config = M.LoadConfig()
+function M.GetDefaultLspConfig()
+  local nvimSettings = M.NvimSettings or {}
+  local serverSettings = M.DefaultServerSettings
   local result = {
     name = "ionide",
-    cmd = { 'fsautocomplete', '--adaptive-lsp-server-enabled', '-v' },
-    cmd_env = { DOTNET_ROLL_FORWARD = "LatestMajor" },
-    filetypes = { "fsharp" },
+    cmd = nvimSettings.FsautocompleteCommand,
+    -- cmd ={ 'fsautocomplete', '--adaptive-lsp-server-enabled', '-v' },
+    -- cmd_env = { DOTNET_ROLL_FORWARD = "LatestMajor" },
+    cmd_env = nvimSettings.cmdEnv or { DOTNET_ROLL_FORWARD = "LatestMajor" },
+    filetypes = { "fsharp", "fsharp_project" },
     autostart = true,
     handlers = M.CreateHandlers(),
-    init_options = { AutomaticWorkspaceInit = M.AutomaticWorkspaceInit },
+    init_options = { AutomaticWorkspaceInit = nvimSettings.AutomaticWorkspaceInit },
     on_init = M.Initialize,
-    settings = { FSharp = config },
-    root_dir = local_root_dir,
-    -- root_dir = util.root_pattern("*.sln"),
+    settings = { FSharp = serverSettings },
+    -- root_dir = local_root_dir,
+    root_dir = util.root_pattern("*.sln"),
   }
   -- vim.notify("ionide default settings are : " .. vim.inspect(result))
   return result
 end
 
 M.Manager = nil
-
-local function autostart_if_needed(m, config)
-  local auto_setup = (M.LspAutoSetup == 1)
+function M.AutoStartIfNeeded(m, config)
+  local auto_setup = (M.NvimSettings.LspAutoSetup == 1)
   if auto_setup and not (config.autostart == false) then
     m.autostart()
   end
 end
 
-local function delegate_to_lspconfig(config)
+function M.DelegateToLspConfig(config)
   local lspconfig = require('lspconfig')
   local configs = require('lspconfig.configs')
   if not (configs['ionide']) then
     configs['ionide'] = {
-      default_config = get_default_config(),
+      default_config = M.DefaultLspConfig,
       docs = {
-        description = [[
-            https://github.com/willehrendreich/Ionide-vim
-                  ]],
+        description = [[ https://github.com/willehrendreich/Ionide-vim ]],
       },
     }
   end
@@ -897,7 +1101,7 @@ end
 vim.filetype.add(
   {
     extension = {
-      fsproj = function(path, bufnr)
+      fsproj = function(_, _)
         return 'fsharp_project', function(bufnr)
           vim.bo[bufnr].syn = "xml"
           vim.bo[bufnr].ro = false
@@ -914,7 +1118,7 @@ vim.filetype.add(
 vim.filetype.add(
   {
     extension = {
-      fs = function(path, bufnr)
+      fs = function(_, _)
         return 'fsharp', function(bufnr)
 
           if not vim.g.filetype_fs then
@@ -989,14 +1193,14 @@ local function create_manager(config)
     on_new_config = { config.on_new_config, "f", true },
   }
 
-  local default_config = tbl_extend("keep", get_default_config(), util.default_config)
+  local default_config = tbl_extend("keep", M.GetDefaultLspConfig(), util.default_config)
   config = tbl_extend("keep", config, default_config)
 
-  local trigger
+  local _
   if config.filetypes then
-    trigger = "FileType " .. table.concat(config.filetypes, ",")
+    _ = "FileType " .. table.concat(config.filetypes, ",")
   else
-    trigger = "BufReadPost *"
+    _ = "BufReadPost *"
   end
 
   local get_root_dir = config.root_dir
@@ -1033,7 +1237,7 @@ local function create_manager(config)
     M.Manager = nil
   end
 
-  local make_config = function(_root_dir)
+  function M.MakeConfig(_root_dir)
     local new_config = vim.tbl_deep_extend("keep", vim.empty_dict(), config)
     new_config = vim.tbl_deep_extend("keep", new_config, default_config)
     new_config.capabilities = new_config.capabilities or lsp.protocol.make_client_capabilities()
@@ -1045,7 +1249,7 @@ local function create_manager(config)
     if config.on_new_config then
       pcall(config.on_new_config, new_config, _root_dir)
     end
-    new_config.on_init = util.add_hook_after(new_config.on_init, function(client, _result)
+    new_config.on_init = util.add_hook_after(new_config.on_init, function(client, _)
       function client.workspace_did_change_configuration(settings)
         if not settings then
           return
@@ -1085,7 +1289,7 @@ local function create_manager(config)
     return new_config
   end
 
-  local manager = util.server_per_root_dir_manager(function(_root_dir) return make_config(_root_dir) end)
+  local manager = util.server_per_root_dir_manager(function(_root_dir) return M.MakeConfig(_root_dir) end)
   function manager.try_add(bufnr)
     bufnr = bufnr or api.nvim_get_current_buf()
     if api.nvim_buf_get_option(bufnr, 'buftype') == 'nofile' then
@@ -1108,13 +1312,12 @@ local function create_manager(config)
   end
 
   M.Manager = manager
-  M.MakeConfig = make_config
   if reload and not (config.autostart == false) then
     for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
       manager.try_add_wrapper(bufnr)
     end
   else
-    autostart_if_needed(M, config)
+    M.AutoStartIfNeeded(M, config)
   end
 end
 
@@ -1130,24 +1333,24 @@ function M._setup_buffer(client_id, bufnr)
 end
 
 function M.InitializeDefaultFsiKeymapSettings()
-  if not M.FsiKeymap then
-    M.FsiKeymap = "vscode"
+  if not M.NvimSettings.FsiKeymap then
+    M.NvimSettings.FsiKeymap = "vscode"
   end
   if vim.fn.has('nvim') then
-    if M.FsiKeymap == "vscode" then
-      M.FsiKeymapSend = "<M-cr>"
-      M.FsiKeymapToggle = "<M-@>"
-    elseif M.FsiKeymap == "vim-fsharp" then
-      M.FsiKeymapSend   = "<leader>i"
-      M.FsiKeymapToggle = "<leader>e"
-    elseif M.FsiKeymap == "custom" then
-      M.FsiKeymap = "none"
-      if not M.FsiKeymapSend then
+    if M.NvimSettings.FsiKeymap == "vscode" then
+      M.NvimSettings.FsiKeymapSend = "<M-cr>"
+      M.NvimSettings.FsiKeymapToggle = "<M-@>"
+    elseif M.NvimSettings.FsiKeymap == "vim-fsharp" then
+      M.NvimSettings.FsiKeymapSend   = "<leader>i"
+      M.NvimSettings.FsiKeymapToggle = "<leader>e"
+    elseif M.NvimSettings.FsiKeymap == "custom" then
+      M.NvimSettings.FsiKeymap = "none"
+      if not M.NvimSettings.FsiKeymapSend then
         vim.cmd.echoerr("FsiKeymapSend not set. good luck with that I dont have a nice way to change it yet. sorry. ")
-      elseif not M.FsiKeymapToggle then
+      elseif not M.NvimSettings.FsiKeymapToggle then
         vim.cmd.echoerr("FsiKeymapToggle not set. good luck with that I dont have a nice way to change it yet. sorry. ")
       else
-        M.FsiKeymap = "custom"
+        M.NvimSettings.FsiKeymap = "custom"
       end
     end
   else
@@ -1156,9 +1359,14 @@ function M.InitializeDefaultFsiKeymapSettings()
 end
 
 function M.setup(config)
+  M.PassedInConfig = config
+  M.NvimSettings = M.LoadNvimSettings()
+  M.DefaultServerSettings = M.LoadDefaultServerSettings()
+  M.DefaultLspConfig = M.GetDefaultLspConfig()
   M.InitializeDefaultFsiKeymapSettings()
+  M.MergedConfig = vim.tbl_deep_extend("keep", config, M.DefaultLspConfig)
   if lspconfig_is_present then
-    return delegate_to_lspconfig(config)
+    return M.DelegateToLspConfig(config)
   end
   return create_manager(config)
 end
@@ -1452,6 +1660,20 @@ function M.ToggleFsi()
   end
 end
 
+local function get_visual_selection()
+  local s_start = vim.fn.getpos("'<")
+  local s_end = vim.fn.getpos("'>")
+  local n_lines = math.abs(s_end[2] - s_start[2]) + 1
+  local lines = vim.api.nvim_buf_get_lines(0, s_start[2] - 1, s_end[2], false)
+  lines[1] = string.sub(lines[1], s_start[3], -1)
+  if n_lines == 1 then
+    lines[n_lines] = string.sub(lines[n_lines], 1, s_end[3] - s_start[3] + 1)
+  else
+    lines[n_lines] = string.sub(lines[n_lines], 1, s_end[3])
+  end
+  return table.concat(lines, '\n')
+end
+
 function M.GetVisualSelection()
   -- vim.notify("getting visual selection")
   local line_start, column_start = unpack(vim.fn.getpos("'<"), 2)
@@ -1559,9 +1781,10 @@ end
 
 function M.SendSelectionToFsi()
 
-  local lines = M.GetVisualSelection()
   -- vim.cmd(':normal' .. vim.fn.len(lines) .. 'j')
+  local lines = M.GetVisualSelection()
   vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<esc>", true, false, true), 'x', true)
+  vim.cmd(':normal' .. ' j')
   -- vim.cmd('normal' .. vim.fn.len(lines) .. 'j')
   local text = vim.fn.join(lines, "\n")
   -- vim.notify("fsi send selection " .. text)
