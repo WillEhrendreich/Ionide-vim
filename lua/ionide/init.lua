@@ -1118,46 +1118,34 @@ vim.filetype.add(
 vim.filetype.add(
   {
     extension = {
-      fs = function(_, _)
+      fs = function(path, bufnr)
         return 'fsharp', function(bufnr)
-
           if not vim.g.filetype_fs then
             vim.g['filetype_fs'] = 'fsharp'
           end
           if not vim.g.filetype_fs == 'fsharp' then
             vim.g['filetype_fs'] = 'fsharp'
           end
-          -- if vim.b.did_fsharp_ftplugin and vim.b.did_fsharp_ftplugin == 1 then
-          -- return
-          -- end
-
-          -- vim.b.did_fsharp_ftplugin = 1
-
-          -- local cpo_save = vim.o.cpo
-          -- vim.o.cpo = ''
-          --
-          -- enable syntax based folding
           vim.w.fdm = 'syntax'
-
           -- comment settings
           vim.bo[bufnr].formatoptions = 'croql'
           vim.bo[bufnr].commentstring = '(*%s*)'
           vim.bo[bufnr].comments = [[s0:*\ -,m0:*\ \ ,ex0:*),s1:(*,mb:*,ex:*),:\/\/\/,:\/\/]]
-
-          -- make ftplugin undo-able
-          -- vim.bo[bufnr].undo_ftplugin = 'setl fo< cms< com< fdm<'
-
-          -- local function prompt(msg)
-          --   local height = vim.o.cmdheight
-          --   if height < 2 then
-          --     vim.o.cmdheight = 2
-          --   end
-          --   print(msg)
-          --   vim.o.cmdheight = height
-          -- end
-
-          -- vim.o.cpo = cpo_save
-
+        end
+      end,
+      fsx = function(path, bufnr)
+        return 'fsharp', function(bufnr)
+          if not vim.g.filetype_fs then
+            vim.g['filetype_fsx'] = 'fsharp'
+          end
+          if not vim.g.filetype_fs == 'fsharp' then
+            vim.g['filetype_fsx'] = 'fsharp'
+          end
+          vim.w.fdm = 'syntax'
+          -- comment settings
+          vim.bo[bufnr].formatoptions = 'croql'
+          vim.bo[bufnr].commentstring = '(*%s*)'
+          vim.bo[bufnr].comments = [[s0:*\ -,m0:*\ \ ,ex0:*),s1:(*,mb:*,ex:*),:\/\/\/,:\/\/]]
         end
       end,
     },
