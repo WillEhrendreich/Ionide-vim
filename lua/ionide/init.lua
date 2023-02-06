@@ -1068,8 +1068,9 @@ function M.GetDefaultLspConfig()
     init_options = { AutomaticWorkspaceInit = nvimSettings.AutomaticWorkspaceInit },
     on_init = M.Initialize,
     settings = { FSharp = serverSettings },
-    -- root_dir = local_root_dir,
-    root_dir = util.root_pattern("*.sln"),
+    -- root_dir = local_root_dir,M.GitFirstRootDir(n)
+    root_dir = M.GitFirstRootDir,
+    -- root_dir = util.root_pattern("*.sln"),
   }
   -- vim.notify("ionide default settings are : " .. vim.inspect(result))
   return result
