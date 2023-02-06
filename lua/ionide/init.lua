@@ -1666,7 +1666,7 @@ end
 function M.GetVisualSelection()
   local line_start, column_start
   local line_end, column_end
-  if vim.fn.mode() == "v" then
+  if vim.fn.visualmode() == "v" or vim.fn.visualmode() == "V" then
     line_start, column_start = unpack(vim.fn.getpos("v"), 2)
     line_end, column_end = unpack(vim.fn.getpos("."), 2)
   else
