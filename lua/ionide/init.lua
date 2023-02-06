@@ -1682,8 +1682,8 @@ function M.GetVisualSelection()
   if #lines == 0 then
     return { "" }
   end
-  if vim.g.selection == "exclusive" - 1 then
-    column_end = column_end -- Needed to remove the last character to make it match the visual selection
+  if vim.g.selection == "exclusive" then
+    column_end = column_end - 1 -- Needed to remove the last character to make it match the visual selection
   end
   if vim.fn.visualmode() == "\22" then
     for i = 1, #lines do
