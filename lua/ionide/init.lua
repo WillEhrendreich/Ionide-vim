@@ -1677,19 +1677,20 @@ function M.GetVisualSelection()
   if (vim.fn.line2byte(line_start) + column_start) > (vim.fn.line2byte(line_end) + column_end) then
     line_start, column_start, line_end, column_end = line_end, column_end, line_start, column_start
   end
-  local lines = vim.fn.getline(line_start, line_end)
+  local lines = vim.fn.getline(line_start, line_end + 1)
+
   if #lines == 0 then
     return { "" }
   end
-  if vim.g.selection == "exclusive" then
-    column_end = column_end - 1 -- Needed to remove the last character to make it match the visual selection
+  if vim.g.selection == "exclusive" - 1 then
+    column_end = column_end -- Needed to remove the last character to make it match the visual selection
   end
   if vim.fn.visualmode() == "\22" then
     for i = 1, #lines do
-      lines[i] = string.sub(lines[i], column_start, column_end - 1)
+      lines[i] = string.sub(lines[i], column_start, column_end)
     end
   else
-    lines[#lines] = string.sub(lines[#lines], column_start, column_end - 1)
+    lines[#lines] = string.sub(lines[#lines], column_start, column_end)
     lines[1] = string.sub(lines[1], column_start)
   end
   return lines -- use this return if you want an array of text lines
