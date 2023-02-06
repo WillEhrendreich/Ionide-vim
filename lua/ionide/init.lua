@@ -1675,34 +1675,68 @@ local function get_visual_selection()
 end
 
 function M.GetVisualSelection()
-  -- vim.notify("getting visual selection")
-  local line_start, column_start = unpack(vim.fn.getpos("'<"), 2)
-  -- local column_start = vim.fn.getpos("'<")[3]
-  -- vim.notify("line start: " .. line_start .. " column_start:" .. column_start)
-  local line_end, column_end = unpack(vim.fn.getpos("'>"), 2)
-  -- vim.notify("line end: " .. line_end .. " column_end:" .. column_end)
-  local lines = vim.fn.getline(line_start, line_end)
-  -- vim.notify("number of lines: " .. vim.inspect(#lines))
-  local len = #lines
-  if len == 0 then
-    return {}
+  local line_start, column_start
+  local line_end, column_end
+  if vim.fn.mode() == "v" then
+    line_start, column_start = unpack(vim.fn.getpos("v")[1], 2)
+    line_end, column_end = unpack(vim.fn.getpos(".")[1], 2)
+  else
+    line_start, column_start = unpack(vim.fn.getpos("'<")[1], 2)
+    line_end, column_end = unpack(vim.fn.getpos("'>")[1], 2)
   end
 
-  local inclusive = vim.o.selection == "inclusive"
-  local columnSelectionSubraction = (function()
-
-    if inclusive then
-      return 1
-    else
-      return 2
+  if (vim.fn.line2byte(line_start) + column_start) > (vim.fn.line2byte(line_end) + column_end) then
+    line_start, column_start, line_end, column_end = line_end, column_end, line_start, column_start
+  end
+  local lines = vim.fn.getline(line_start, line_end)
+  if #lines == 0 then
+    return { "" }
+  end
+  if vim.g.selection == "exclusive" then
+    column_end = column_end - 1 -- Needed to remove the last character to make it match the visual selection
+  end
+  if vim.fn.visualmode() == "\22" then
+    for i = 1, #lines do
+      lines[i] = string.sub(lines[i], column_start, column_end - 1)
     end
-  end)()
-  lines[len] = string.sub(lines[len], 0, column_end - columnSelectionSubraction)
-  lines[1] = string.sub(lines[1], column_start)
-  -- vim.notify("lines: \n" .. vim.inspect(lines))
-  return lines
+  else
+    lines[#lines] = string.sub(lines[#lines], column_start, column_end - 1)
+    lines[1] = string.sub(lines[1], column_start)
+  end
+  return lines -- use this return if you want an array of text lines
+  -- return table.concat(lines, "\n") -- use this return instead if you need a text block
 end
 
+-- function M.GetVisualSelection()
+--   -- vim.notify("getting visual selection")
+--   -- vim.api.nvim_feedkeys("j", "n", false)
+--   local line_start, column_start = unpack(vim.fn.getpos("'<"), 2)
+--   -- local column_start = vim.fn.getpos("'<")[3]
+--   -- vim.notify("line start: " .. line_start .. " column_start:" .. column_start)
+--   local line_end, column_end = unpack(vim.fn.getpos("'>"), 2)
+--   -- vim.notify("line end: " .. line_end .. " column_end:" .. column_end)
+--   local lines = vim.fn.getline(line_start, line_end)
+--   -- vim.notify("number of lines: " .. vim.inspect(#lines))
+--   local len = #lines
+--   if len == 0 then
+--     return {}
+--   end
+--
+--   local inclusive = vim.o.selection == "inclusive"
+--   local columnSelectionSubraction = (function()
+--
+--     if inclusive then
+--       return 1
+--     else
+--       return 2
+--     end
+--   end)()
+--   lines[len] = string.sub(lines[len], 0, column_end - columnSelectionSubraction)
+--   lines[1] = string.sub(lines[1], column_start)
+--   -- vim.notify("lines: \n" .. vim.inspect(lines))
+--   return lines
+-- end
+--
 --"
 --" function! fsharp#quitFsi()
 --"     if s:fsi_buffer >= 0 && bufexists(str2nr(s:fsi_buffer))
@@ -1783,8 +1817,9 @@ function M.SendSelectionToFsi()
 
   -- vim.cmd(':normal' .. vim.fn.len(lines) .. 'j')
   local lines = M.GetVisualSelection()
+
   vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<esc>", true, false, true), 'x', true)
-  vim.cmd(':normal' .. ' j')
+  -- vim.cmd(':normal' .. ' j')
   -- vim.cmd('normal' .. vim.fn.len(lines) .. 'j')
   local text = vim.fn.join(lines, "\n")
   -- vim.notify("fsi send selection " .. text)
@@ -1835,4 +1870,3 @@ function M.SetKeymaps()
 end
 
 return M
-
