@@ -1666,34 +1666,50 @@ end
 function M.GetVisualSelection()
   local line_start, column_start
   local line_end, column_end
-  if vim.fn.visualmode() == "v" or vim.fn.visualmode() == "V" then
-    line_start, column_start = unpack(vim.fn.getpos("v"), 2)
-    line_end, column_end = unpack(vim.fn.getpos("."), 2)
+  if vim.fn.visualmode() == "\22" then
+    -- if vim.fn.visualmode() == "v" or vim.fn.visualmode() == "V" then
+    -- line_start, column_start = unpack(vim.fn.getpos("v"), 2)
+    -- line_end, column_end = unpack(vim.fn.getpos("."), 2)
   else
-    line_start, column_start = unpack(vim.fn.getpos("'<"), 2)
-    line_end, column_end = unpack(vim.fn.getpos("'>"), 2)
-  end
-
-  if (vim.fn.line2byte(line_start) + column_start) > (vim.fn.line2byte(line_end) + column_end) then
-    line_start, column_start, line_end, column_end = line_end, column_end, line_start, column_start
-  end
-  local lines = vim.fn.getline(line_start, line_end + 1)
-
+  -- does not handle rectangular selection
+  local s_start = vim.fn.getpos("'<")
+  local s_end = vim.fn.getpos("'>")
+  local n_lines = math.abs(s_end[2] - s_start[2]) + 1
+  local lines = vim.api.buf_get_lines(0, s_start[2] - 1, s_end[2], false)
+  lines[1] = string.sub(lines[1], s_start[3], -1)
   if #lines == 0 then
     return { "" }
   end
-  if vim.g.selection == "exclusive" then
-    column_end = column_end - 1 -- Needed to remove the last character to make it match the visual selection
-  end
-  if vim.fn.visualmode() == "\22" then
-    for i = 1, #lines do
-      lines[i] = string.sub(lines[i], column_start, column_end)
-    end
+  if n_lines == 1 then
+    lines[n_lines] = string.sub(lines[n_lines], 1, s_end[3] - s_start[3] + 1)
   else
-    lines[#lines] = string.sub(lines[#lines], column_start, column_end)
-    lines[1] = string.sub(lines[1], column_start)
+    lines[n_lines] = string.sub(lines[n_lines], 1, s_end[3])
   end
+  --   line_start, column_start = unpack(vim.fn.getpos("'<"), 2)
+  --   line_end, column_end = unpack(vim.fn.getpos("'>"), 2)
+  -- end
+  -- if (vim.fn.line2byte(line_start) + column_start) > (vim.fn.line2byte(line_end) + column_end) then
+  --   line_start, column_start, line_end, column_end = line_end, column_end, line_start, column_start
+  -- end
+  -- local lines = vim.fn.getline(line_start, line_end + 1)
+  -- if #lines == 0 then
+  --   return { "" }
+  -- end
+  -- if vim.g.selection == "exclusive" then
+  --   column_end = column_end - 1 -- Needed to remove the last character to make it match the visual selection
+  -- end
+    
+  -- if vim.fn.visualmode() == "\22" then
+  --   for i = 1, #lines do
+  --     lines[i] = string.sub(lines[i], column_start, column_end - 1)
+  --   end
+  -- else
+  --   lines[#lines] = string.sub(lines[#lines], column_start, column_end - 1)
+  --   lines[1] = string.sub(lines[1], column_start)
+  -- end
+
   return lines -- use this return if you want an array of text lines
+
   -- return table.concat(lines, "\n") -- use this return instead if you need a text block
 end
 
@@ -1808,17 +1824,19 @@ function M.SendSelectionToFsi()
   -- vim.cmd(':normal' .. vim.fn.len(lines) .. 'j')
   local lines = M.GetVisualSelection()
 
-  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<esc>", true, false, true), 'x', true)
+  -- vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<esc>", true, false, true), 'x', true)
   -- vim.cmd(':normal' .. ' j')
   -- vim.cmd('normal' .. vim.fn.len(lines) .. 'j')
   local text = vim.fn.join(lines, "\n")
   -- vim.notify("fsi send selection " .. text)
   M.SendFsi(text)
 
-  local line_end, _ = unpack(vim.fn.getpos("'>"), 2)
+  -- local line_end, _ = unpack(vim.fn.getpos("'>"), 2)
 
+  -- vim.cmd 'normal j'
 
-  vim.api.nvim_win_set_cursor(0, { line_end + 1, 0 })
+  -- vim.cmd(':normal' .. ' j')
+  -- vim.api.nvim_win_set_cursor(0, { line_end + 1, 0 })
 
   -- vim.cmd(':normal' .. vim.fn.len(lines) .. 'j')
 end
@@ -1827,7 +1845,7 @@ function M.SendLineToFsi()
   local text = vim.api.nvim_get_current_line()
   -- vim.notify("fsi send line " .. text)
   M.SendFsi(text)
-  vim.cmd 'normal j'
+  -- vim.cmd 'normal j'
 end
 
 function M.SendAllToFsi()
@@ -1860,3 +1878,4 @@ function M.SetKeymaps()
 end
 
 return M
+
