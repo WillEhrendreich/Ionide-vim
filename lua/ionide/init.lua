@@ -480,7 +480,7 @@ function M.LoadDefaultServerSettings()
         end
         return ""
       end
-    end)()
+    end)()[1]
     },
 
     --     FSIExtraParameters: string[] option
