@@ -25,6 +25,28 @@ end
 local neotree =
   tryRequire("neotree.nvim")
 
+local neoconf = tryRequire("neoconf.plugins")
+if neoconf == nil then
+    ---@class SettingsPlugin
+    ---@field name string
+    ---@field setup fun()|nil
+    ---@field on_update fun(event)|nil
+    ---@field on_schema fun(schema: Schema)
+  --construct a fake one to "register" the schema without it giving an error.
+    ---@type  SettingsPlugin
+  local fakeNeoConfRegisterOpts={
+  on_schema = function(schema)
+
+
+    end}
+
+  neoconf ={
+    ---comment
+    ---@param plugin SettingsPlugin
+    register=function(plugin)
+
+  end}
+end
 
 ---@class PackageReference
 ---@field FullPath string
@@ -326,7 +348,25 @@ end
 
 local M = {}
 
-M.workspace_folders = {}
+M.getCurrentBufferIonideClient = function()
+  local client = vim.lsp.get_active_clients({bufnr = vim.api.nvim_get_current_buf() or 0, name = M.DefaultLspConfig.name or "ionide" })[1]
+  if client then return client
+  else
+    return nil
+  end
+
+end
+
+M.getCurrentBufferIonideClientConfigRootDirOrCwd= function ()
+  local ionide = M.getCurrentBufferIonideClient()
+  if ionide then
+   return ionide.config.root_dir
+  else
+   return vim.fn.getcwd()
+  end
+end
+
+M.projectFolders = {}
 
 ---@type table<string,ProjectInfo>
 M.Projects = {}
@@ -548,12 +588,13 @@ M["fsharp/notifyWorkspace"] = function (payload)
     elseif content.Kind == "workspaceLoad" and content.Data.Status == "finished" then
       -- print("[Ionide] calling updateServerConfig ... ")
       -- print("[Ionide] before calling updateServerconfig, workspace looks like:   " .. vim.inspect(Workspace))
+
       for proj, projInfoData in pairs(M.Projects) do
 
         local dir = vim.fs.dirname(proj)
-          if vim.tbl_contains(M.workspace_folders,dir) then
+          if vim.tbl_contains(M.projectFolders,dir) then
           else
-          table.insert(M.workspace_folders,dir)
+          table.insert(M.projectFolders,dir)
           end
         end
       -- M.UpdateServerConfig(M.MergedConfig.settings.FSharp)
@@ -568,6 +609,14 @@ M["fsharp/notifyWorkspace"] = function (payload)
         end
       else
         vim.notify("[Ionide] Workspace is empty! Something went wrong. ")
+      end
+      local deleteMeFiles = vim.fs.find(function(name, _) return name:match('.*TempFileForProjectInitDeleteMe.fs$') end ,{type= "file" })
+      if deleteMeFiles then
+      for _,file in ipairs(deleteMeFiles) do
+        pcall (os.remove,file)
+        end
+
+
       end
     end
   end
@@ -784,13 +833,22 @@ end
 ---@type IonideOptions
 M.DefaultLspConfig = {
   IonideNvimSettings = M.DefaultNvimSettings,
-  filetypes = { "fsharp", "fsharp_project" },
+  filetypes = { "fsharp"},
   name = "ionide",
   cmd = M.DefaultNvimSettings.FsautocompleteCommand,
   autostart = true,
   handlers = M.CreateHandlers(),
   init_options = { AutomaticWorkspaceInit = M.DefaultNvimSettings.AutomaticWorkspaceInit },
   on_init = M.Initialize,
+  on_attach =function (client, bufnr)
+   local isProjFile  =vim.bo[bufnr].filetype == "fsharp_project"
+    if isProjFile then
+      if lspconfig_is_present then
+        local lspconfig = require("lspconfig")
+      end
+
+  else return end
+  end,
   -- on_new_config = M.Initialize,
   settings = { FSharp = M.DefaultServerSettings },
   root_dir = M.GitFirstRootDir,
@@ -799,6 +857,15 @@ M.DefaultLspConfig = {
   capabilities = lsp.protocol.make_client_capabilities(),
 }
 
+neoconf.register({
+  on_schema=function(schema)
+  if schema then
+    if schema.import then
+    schema:import("ionide",M.DefaultLspConfig)
+        end
+    end
+end
+})
 ---@type IonideOptions
 M.PassedInConfig = { settings = { FSharp = {} } }
 
@@ -1171,15 +1238,15 @@ end
 
 function M.ShowLoadedProjects()
   for proj, projInfo in pairs(M.Projects) do
-    print("- " .. vim.fs.normalize(proj))
+    vim.notify("- " .. vim.fs.normalize(proj))
   end
 end
 
 function M.ReloadProjects()
   print("[Ionide] Reloading Projects")
-  local foldersCount = #(vim.tbl_keys(M.Projects))
+  local foldersCount = #(M.projectFolders)
   if foldersCount > 0 then
-    M.CallFSharpWorkspaceLoad(M.workspace_folders)
+    M.CallFSharpWorkspaceLoad(M.projectFolders)
   else
     print("[Ionide] Workspace is empty")
   end
@@ -1187,17 +1254,20 @@ end
 
 function M.OnFSProjSave()
   if vim.bo.ft == "fsharp_project" and M.MergedConfig.IonideNvimSettings.AutomaticReloadWorkspace and M.MergedConfig.IonideNvimSettings.AutomaticReloadWorkspace  == true then
-    vim.notify("[Ionide] fsharp project saved, reloading...")
+    print("[Ionide] fsharp project saved, reloading...")
+    local parentDir=  vim.fs.normalize(vim.fs.dirname(vim.api.nvim_buf_get_name(vim.api.nvim_get_current_buf())))
+
+    if not vim.tbl_contains(M.projectFolders, parentDir) then
+      table.insert( M.projectFolders,parentDir)
+    end
     M.ReloadProjects()
+
   end
 end
 
-function M.ShowWorkspaceFolders()
-  ---@type lsp.Client
-  local client = vim.lsp.get_active_clients({
-    bufnr = vim.api.nvim_get_current_buf(),
-    name = "ionide"
-  })[1]
+function M.ShowIonideClientWorkspaceFolders()
+  ---@type lsp.Client|nil
+  local client = M.getCurrentBufferIonideClient()
   if client then
     local folders = client.workspace_folders or {}
     print("[Ionide] WorkspaceFolders: \n" .. vim.inspect(folders))
@@ -1213,7 +1283,7 @@ end
 function M.ShowConfigs()
   -- print("[Ionide] Last passed in Config: \n" .. vim.inspect(M.PassedInConfig))
   print("[Ionide] Last final merged Config: \n" .. vim.inspect(M.MergedConfig))
-  M.ShowWorkspaceFolders()
+  M.ShowIonideClientWorkspaceFolders()
 end
 
 
@@ -1275,7 +1345,7 @@ function M.RegisterAutocmds()
     end,
   })
 
-  autocmd({ "LspAttach", "BufEnter", "BufWritePost", "InsertLeave" }, {
+  autocmd({  "BufEnter", "BufWritePost", "InsertLeave" }, {
     desc = "FSharp Auto refresh code lens ",
     group = grp("FSharp_AutoRefreshCodeLens", { clear = true }),
     pattern = "*.fs,*.fsi,*.fsx",
@@ -1286,14 +1356,12 @@ function M.RegisterAutocmds()
       end, 2000)
     end,
   })
-end
 
--- end
 
 autocmd({ "CursorHold,InsertLeave" }, {
   desc = "URL Highlighting",
   group = grp("FSharp_HighlightUrl", { clear = true }),
-  pattern = "*.fs,*.fsi,*.fsx,*.fsproj",
+  pattern = "*.fs,*.fsi,*.fsx",
   callback = function()
     vim.defer_fn(function()
       M.OnCursorMove()
@@ -1307,15 +1375,13 @@ autocmd({ "CursorHold,InsertLeave" }, {
     group = grp("FSharp_ApplyRecommendedColorScheme", { clear = true }),
     pattern = "*.fs,*.fsi,*.fsx",
     callback = function()
-
-    if M.MergedConfig.IonideNvimSettings.LspRecommendedColorscheme == true then
-      M.ApplyRecommendedColorscheme()
-
-    end
-
+      if M.MergedConfig.IonideNvimSettings.LspRecommendedColorscheme == true then
+        M.ApplyRecommendedColorscheme()
+      end
     end,
   })
 
+end
     -- local initialize_params = {
     --   -- The process Id of the parent process that started the server. Is null if
     --   -- the process has not been started by another process.  If the parent
@@ -1375,26 +1441,29 @@ autocmd({ "CursorHold,InsertLeave" }, {
 function M.Initialize()
 
   if not vim.fn.has("nvim") then
-    print("WARNING - This version of Ionide is only for NeoVim. please try Ionide/Ionide-Vim instead. ")
+    vim.notify("WARNING - This version of Ionide is only for NeoVim. please try Ionide/Ionide-Vim instead. ")
     return
   end
 
-  print("Ionide Initializing")
-  print("Ionide calling updateServerConfig...")
+  vim.notify("Ionide Initializing")
 
+  vim.notify("Ionide calling updateServerConfig...")
   M.UpdateServerConfig(M.MergedConfig.settings.FSharp)
 
-  print("Ionide calling SetKeymaps...")
+  vim.notify("Ionide calling SetKeymaps...")
   M.SetKeymaps()
-  print("Ionide calling registerAutocmds...")
+  vim.notify("Ionide calling registerAutocmds...")
   M.RegisterAutocmds()
-  print("Ionide calling custom WorkspacePeekRequest...")
+  local thisBufnr=vim.api.nvim_get_current_buf()
+  local thisBufname=vim.api.nvim_buf_get_name(thisBufnr)
+  vim.notify("Ionide calling custom WorkspacePeekRequest in relation to file .. ".. vim.fn.fnamemodify(thisBufname,":p:."))
   ---@type lsp.Client
-  local thisIonide = ( vim.lsp.get_active_clients({bufnr =0,name = "ionide" })[1] ) or {workspace_folders={{vim.fn.getcwd()}}}
+  local thisIonide = ( vim.lsp.get_active_clients({bufnr =thisBufnr,name = "ionide" })[1] ) or {workspace_folders={{vim.fn.getcwd()}}}
+
 
   local thisBufIonideRootDir= thisIonide.workspace_folders[1][1] -- or vim.fn.getcwd()
   M.CallFSharpWorkspacePeek( thisBufIonideRootDir, M.MergedConfig.settings.FSharp.workspaceModePeekDeepLevel, M.MergedConfig.settings.FSharp.excludeProjectDirectories)
-  print("Ionide Initialized")
+  vim.notify("Ionide Initialized")
 end
 
 
@@ -1407,12 +1476,12 @@ function M.AutoStartIfNeeded(config)
 end
 
 function M.DelegateToLspConfig(config)
-  vim.notify("calling DelegateToLspConfig")
+  -- vim.notify("calling DelegateToLspConfig")
   local lspconfig = require("lspconfig")
   local configs = require("lspconfig.configs")
   if not configs["ionide"] then
 
-  vim.notify("creating entry in  lspconfig configs for ionide ")
+  -- vim.notify("creating entry in lspconfig configs for ionide ")
     configs["ionide"] = {
       default_config = config,
       docs = {
@@ -1420,8 +1489,10 @@ function M.DelegateToLspConfig(config)
       },
     }
   end
-  vim.notify("calling lspconfig setup for ionide ")
+
   lspconfig.ionide.setup(config)
+
+  -- vim.notify("calling lspconfig setup for ionide ")
 end
 
 --- ftplugin section ---
@@ -1481,12 +1552,63 @@ vim.filetype.add({
   },
 })
 
--- vim.api.nvim_create_autocmd("BufWritePost", {
---     pattern = "*.fsproj",
---     desc = "FSharp Auto refresh on project save",
---     group = vim.api.nvim_create_augroup("FSharpLCFsProj", { clear = true }),
---     callback = function() M.OnFSProjSave() end
--- })
+
+autocmd("BufWritePost", {
+    pattern = "*.fsproj",
+    desc = "FSharp Auto refresh on project save",
+    group = vim.api.nvim_create_augroup("FSProjRefreshOnProjectSave", { clear = true }),
+    callback = function() M.OnFSProjSave() end
+})
+
+  autocmd({"BufReadPost" }, {
+    desc = "FSharp start Ionide on fsharp_project load",
+    group = grp("FSProjStartIonide", { clear = true }),
+    pattern = "*.fsproj",
+    callback = function()
+      local bufnr = vim.api.nvim_get_current_buf()
+      local bufname = vim.fs.normalize(vim.api.nvim_buf_get_name(bufnr))
+      local projectRoot = vim.fs.normalize( M.GitFirstRootDir(bufname))
+
+
+      -- vim.notify("Searching for Ionide client already started for root path of " .. projectRoot )
+      local parentDir =vim.fs.normalize( vim.fs.dirname(bufname))
+      local closestFsFile =  vim.fs.find(function(name, path)
+        return name:match('.*%.fs$') end,
+        {limit = 1, type = 'file',upward = true,path= parentDir,stop= projectRoot })[1] or
+      (function()
+        local newFile = parentDir .. "/".. vim.inspect(os.time()).. "TempFileForProjectInitDeleteMe.fs"
+          vim.fn.writefile({}, newFile)
+        return newFile
+      end)()
+
+      -- vim.notify("closest fs file is  " .. closestFsFile )
+      ---@type integer
+      local closestFileBufNumber= vim.fn.bufadd(closestFsFile)
+      local ionideClientsList=vim.lsp.get_active_clients({name = "ionide"})
+      local isAleadyStarted = false
+      if ionideClientsList then
+
+        for _,client in ipairs(ionideClientsList) do
+        local root = client.config.root_dir or ""
+        if vim.fs.normalize(root) == projectRoot then
+            -- vim.notify("Ionide already started for root path of " .. projectRoot .. " \nClient Id: " .. vim.inspect(client.id))
+            isAleadyStarted = true
+            break
+          end
+        end
+      else
+      end
+      if not isAleadyStarted then
+        vim.defer_fn(
+          function ()
+            vim.cmd.tcd(projectRoot)
+            vim.cmd.e(closestFsFile)
+            vim.cmd.b(bufnr)
+            vim.cmd.bd(closestFileBufNumber)
+          end ,100)
+        end
+    end,
+  })
 
 -- vim.api.nvim_create_autocmd("BufWritePost", {
 --   pattern = "*.fsproj",
@@ -1697,7 +1819,11 @@ end
 
 function M.status()
   if lspconfig_is_present then
-    print("* LSP server: handled by nvim-lspconfig")
+
+    -- print("* LSP server: handled by nvim-lspconfig")
+
+    -- local ionide = lsp.buf.inlay_hint(0, true)
+    vim.inspect(lsp.buf.list_workspace_folders())
   elseif M.Manager ~= nil then
     if next(M.Manager.clients()) == nil then
       print("* LSP server: not started")
@@ -2265,7 +2391,7 @@ uc("IonideQuitFSI", M.QuitFsi, { desc = "Ionide - Quit FSharp Interactive" })
 uc("IonideResetFSI", M.ResetFsi, { desc = "Ionide - Reset FSharp Interactive" })
 
 uc("IonideShowConfigs", M.ShowConfigs, {})
-uc("IonideShowWorkspaceFolders", M.ShowWorkspaceFolders, {})
+uc("IonideShowWorkspaceFolders", M.ShowIonideClientWorkspaceFolders, {})
 uc("IonideLoadProjects", function(opts)
   if type(opts.fargs) == "string" then
     local projTable = { opts.fargs }
@@ -2287,8 +2413,8 @@ end, {
 uc("IonideShowLoadedProjects", M.ShowLoadedProjects, {})
 uc("IonideShowNvimSettings", M.ShowNvimSettings, {})
 uc("IonideShowAllLoadedProjectInfo", function() vim.notify(vim.inspect(M.Projects)) end, {desc ="Show all currently loaded Project Info, as far as Neovim knows or cares"})
-uc("IonideShowAllLoadedWorkspaceFolders", function() vim.notify(vim.inspect(M.workspace_folders)) end, {desc ="Show all currently loaded workspace folders, as far as Neovim knows or cares"})
-uc("IonideWorkspacePeek", function() M.CallFSharpWorkspacePeek( vim.fn.getcwd(), 4, {}) end,
+uc("IonideShowAllLoadedProjectFolders", function() vim.notify(vim.inspect(table.concat(M.projectFolders,"\n"))) end, {desc ="Show all currently loaded project folders, as far as Neovim knows or cares"})
+uc("IonideWorkspacePeek", function() M.CallFSharpWorkspacePeek(M.getCurrentBufferIonideClientConfigRootDirOrCwd(), M.MergedConfig.settings.FSharp.workspaceModePeekDeepLevel or 3, M.MergedConfig.settings.FSharp.excludeProjectDirectories or {}) end,
   { desc = "Request a workspace peek from Lsp" })
 
 return M
