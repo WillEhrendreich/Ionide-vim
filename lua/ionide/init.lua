@@ -1107,16 +1107,6 @@ end
 --   return M.Call("fsharp/compile", M.CreateFSharpProjectParams(projectPath), cont)
 -- end
 --
--- ---Calls "fsharp/workspacePeek" Lsp Endpoint of FsAutoComplete
--- ---@param directoryPath string
--- ---@param depth integer
--- ---@param excludedDirs string[]
--- ---@param cont any
--- ---@return nil
--- function M.CallFSharpWorkspacePeek(directoryPath, depth, excludedDirs, cont)
---   return M.Call("fsharp/workspacePeek", M.CreateFSharpWorkspacePeekRequest(directoryPath, depth, excludedDirs), cont)
--- end
---
 -- ---Call to "fsharp/workspaceLoad"
 -- ---@param projectFiles string[]  a string list of project files.
 -- ---@param cont any
@@ -1203,8 +1193,12 @@ end
 ---@param depth integer
 ---@param excludedDirs string[]
 ---@return nil
-function M.CallFSharpWorkspacePeek(directoryPath, depth, excludedDirs)
-  return M.Call("fsharp/workspacePeek", M.CreateFSharpWorkspacePeekRequest(directoryPath, depth, excludedDirs))
+---@return table<integer, integer>, fun() 2-tuple:
+---  - Map of client-id:request-id pairs for all successful requests.
+---  - Function which can be used to cancel all the requests. You could instead
+---    iterate all clients and call their `cancel_request()` methods.
+function M.CallFSharpWorkspacePeek(directoryPath, depth, excludedDirs, handler)
+  return M.Call("fsharp/workspacePeek", M.CreateFSharpWorkspacePeekRequest(directoryPath, depth, excludedDirs), handler)
 end
 
 
@@ -1492,13 +1486,20 @@ function M.Initialize()
   local thisBufnr=vim.api.nvim_get_current_buf()
   local thisBufname=vim.api.nvim_buf_get_name(thisBufnr)
   vim.notify("Ionide calling custom WorkspacePeekRequest in relation to file .. ".. vim.fn.fnamemodify(thisBufname,":p:."))
+  M.notify(
+    "Ionide calling custom WorkspacePeekRequest in relation to file .. " .. vim.fn.fnamemodify(thisBufname, ":p:.")
+  )
   ---@type lsp.Client
-  local thisIonide = ( vim.lsp.get_active_clients({bufnr =thisBufnr,name = "ionide" })[1] ) or {workspace_folders={{vim.fn.getcwd()}}}
-
-
-  local thisBufIonideRootDir= thisIonide.workspace_folders[1][1] -- or vim.fn.getcwd()
-  M.CallFSharpWorkspacePeek( thisBufIonideRootDir, M.MergedConfig.settings.FSharp.workspaceModePeekDeepLevel, M.MergedConfig.settings.FSharp.excludeProjectDirectories)
   vim.notify("Ionide Initialized")
+  local thisIonide = vim.lsp.get_active_clients({ bufnr = thisBufnr, name = "ionide" })[1]
+    or { workspace_folders = { { vim.fn.getcwd() } } }
+
+  local thisBufIonideRootDir = thisIonide.workspace_folders[1][1] -- or vim.fn.getcwd()
+  M.CallFSharpWorkspacePeek(
+    thisBufIonideRootDir,
+    M.MergedConfig.settings.FSharp.workspaceModePeekDeepLevel,
+    M.MergedConfig.settings.FSharp.excludeProjectDirectories
+  )
 end
 
 
@@ -2451,6 +2452,13 @@ uc("IonideShowAllLoadedProjectInfo", function() vim.notify(vim.inspect(M.Project
 uc("IonideShowAllLoadedProjectFolders", function() vim.notify(vim.inspect(table.concat(M.projectFolders,"\n"))) end, {desc ="Show all currently loaded project folders, as far as Neovim knows or cares"})
 uc("IonideWorkspacePeek", function() M.CallFSharpWorkspacePeek(M.getCurrentBufferIonideClientConfigRootDirOrCwd(), M.MergedConfig.settings.FSharp.workspaceModePeekDeepLevel or 3, M.MergedConfig.settings.FSharp.excludeProjectDirectories or {}) end,
   { desc = "Request a workspace peek from Lsp" })
+uc("IonideWorkspacePeek", function()
+  M.CallFSharpWorkspacePeek(
+    M.getIonideClientConfigRootDirOrCwd(),
+    M.MergedConfig.settings.FSharp.workspaceModePeekDeepLevel or 3,
+    M.MergedConfig.settings.FSharp.excludeProjectDirectories or {}
+  )
+end, { desc = "Request a workspace peek from Lsp" })
 
 return M
 
