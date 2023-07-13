@@ -9,13 +9,6 @@ local fn = vim.fn
 
 local M = {}
 
-M.default_config = {
-  log_level = lsp.protocol.MessageType.Warning,
-  message_level = lsp.protocol.MessageType.Warning,
-  settings = vim.empty_dict(),
-  init_options = vim.empty_dict(),
-  handlers = {},
-}
 
 function M.validate_bufnr(bufnr)
   validate {
