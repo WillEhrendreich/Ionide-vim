@@ -128,14 +128,6 @@ end
 ---@field Data SolutionData
 ---@field Type string --should only ever be "solution"
 
--- used for "fsharp/documentationSymbol" - accepts DocumentationForSymbolReuqest,
--- returns documentation data about given symbol from given assembly, used for InfoPanel
--- original fsharp type declaration :
--- type DocumentationForSymbolReuqest = { XmlSig: string; Assembly: string }
----@class FSharpDocumentationForSymbolRequest
----@field XmlSig string
----@field Assembly string
-
 --- for calling "fsharp/workspaceLoad" -
 --- accepts WorkspaceLoadParms, loads given list of projects in the background,
 --- partial result notified by fsharp/notifyWorkspace notification
@@ -147,7 +139,6 @@ end
 ---   }
 ---@class FSharpWorkspaceLoadParams
 ---@field TextDocuments lsp.TextDocumentIdentifier[]
-
 
 --- for calling "fsharp/workspacePeek" - accepts WorkspacePeekRequest,
 --- returns list of possible workspaces (resolved solution files,
@@ -524,6 +515,27 @@ M.DefaultServerSettings = {
     logCheckFileDuration = false,
   },
 }
+
+-- used for "fsharp/documentationSymbol" - accepts DocumentationForSymbolReuqest,
+-- returns documentation data about given symbol from given assembly, used for InfoPanel
+-- original fsharp type declaration :
+-- type DocumentationForSymbolReuqest = { XmlSig: string; Assembly: string }
+---@class FSharpDocumentationForSymbolRequest
+---@field XmlSig string
+---@field Assembly string
+
+---Creates a DocumentationForSymbolRequest from the xmlSig and assembly strings
+---@param xmlSig string
+---@param assembly string
+---@return FSharpDocumentationForSymbolRequest
+function M.DocumentationForSymbolRequest(xmlSig, assembly)
+  ---@type FSharpDocumentationForSymbolRequest
+  local result = {
+    XmlSig = xmlSig,
+    Assembly = assembly,
+  }
+  return result
+end
 
 ---@type IonideNvimSettings
 M.DefaultNvimSettings = {
