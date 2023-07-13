@@ -586,6 +586,11 @@ function M.GitFirstRootDir(n)
   return root
 end
 
+local function split_lines(value)
+  value = string.gsub(value, "\r\n?", "\n")
+  return vim.split(value, "\n", { trimempty = true })
+end
+
 --- Handlers ---
 
 --see: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_documentHighlight
