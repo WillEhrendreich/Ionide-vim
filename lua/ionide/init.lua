@@ -319,7 +319,7 @@ end
 ---@param suffix string
 ---@return boolean
 local function stringEndsWith(s, suffix)
-  return s:sub(- #suffix) == suffix
+  return s:sub(-#suffix) == suffix
 end
 
 local M = {}
