@@ -995,10 +995,6 @@ function M.TextDocumentIdentifier(path)
   return { Uri = (uri) }
 end
 
--- function! s:Position(line, character)
---     return { 'Line': a:line, 'Character': a:character }
--- endfunction
-
 ---Creates an lsp.Position from a line and character number
 ---@param line integer
 ---@param character integer
@@ -1006,13 +1002,6 @@ end
 function M.Position(line, character)
   return { Line = line, Character = character }
 end
-
--- function! s:TextDocumentPositionParams(documentUri, line, character)
---     return {
---         \ 'TextDocument': s:TextDocumentIdentifier(a:documentUri),
---         \ 'Position':     s:Position(a:line, a:character)
---         \ }
--- endfunction
 
 ---Creates a TextDocumentPositionParams from a documentUri , line number and character number
 ---@param documentUri string
@@ -1025,32 +1014,6 @@ function M.TextDocumentPositionParams(documentUri, line, character)
     Position = M.Position(line, character),
   }
 end
-
--- function! s:DocumentationForSymbolRequest(xmlSig, assembly)
---     return {
---         \ 'XmlSig': a:xmlSig,
---         \ 'Assembly': a:assembly
---         \ }
--- endfunction
-
----Creates a DocumentationForSymbolRequest from the xmlSig and assembly strings
----@param xmlSig string
----@param assembly string
----@return FSharpDocumentationForSymbolRequest
-function M.DocumentationForSymbolRequest(xmlSig, assembly)
-  ---@type FSharpDocumentationForSymbolRequest
-  local result =
-  {
-    XmlSig = xmlSig,
-    Assembly = assembly,
-  }
-  return result
-end
-
--- function! s:ProjectParms(projectUri)
---     return { 'Project': s:TextDocumentIdentifier(a:projectUri) }
--- endfunction
-
 
 ---creates a ProjectParms for fsharp/project call
 ---@param projectUri string
@@ -1074,24 +1037,12 @@ function M.CreateFSharpWorkspacePeekRequest(directory, deep, excludedDirs)
   }
 end
 
--- function! s:FsdnRequest(query)
---     return { 'Query': a:query }
--- endfunction
-
 ---creates an fsdn request.. probabably useless now..
 ---@param query string
 ---@return FsdnRequest
 function M.FsdnRequest(query)
   return { Query = query }
 end
-
--- function! s:WorkspaceLoadParms(files)
---     let prm = []
---     for file in a:files
---         call add(prm, s:TextDocumentIdentifier(file))
---     endfor
---     return { 'TextDocuments': prm }
--- endfunction
 
 ---Creates FSharpWorkspaceLoadParams from the string list of Project files to load given.
 ---@param files string[] -- project files only..
@@ -1130,106 +1081,47 @@ function M.CallLspNotify(method, params)
   lsp.buf_notify(0, method, params)
 end
 
---
--- function M.CallFSharpSignatureData(filePath, line, character, cont)
---   return M.Call("fsharp/signatureData", M.TextDocumentPositionParams(filePath, line, character), cont)
--- end
---
--- function M.CallFSharpLineLens(projectPath, cont)
---   return M.Call("fsharp/lineLens", M.CreateFSharpProjectParams(projectPath), cont)
--- end
---
--- function M.CallFSharpCompilerLocation(cont)
---   return M.Call("fsharp/compilerLocation", nil, cont or nil)
--- end
-
--- ---Calls "fsharp/compile" on the given project file
--- ---@param projectPath string
--- ---@param cont any
--- ---@return nil
--- function M.CallFSharpCompileOnProjectFile(projectPath, cont)
---   return M.Call("fsharp/compile", M.CreateFSharpProjectParams(projectPath), cont)
--- end
---
--- ---Call to "fsharp/workspaceLoad"
--- ---@param projectFiles string[]  a string list of project files.
--- ---@param cont any
--- ---@return nil
--- function M.CallFSharpWorkspaceLoad(projectFiles, cont)
---   return M.Call("fsharp/workspaceLoad", M.CreateFSharpWorkspaceLoadParams(projectFiles), cont)
--- end
---
--- ---call to "fsharp/project" - which, after using projectPath to create an FSharpProjectParms, loads given project
--- ---@param projectPath string
--- ---@param cont integer
--- ---@return nil
--- function M.CallFSharpProject(projectPath, cont)
---   return M.Call("fsharp/project", M.CreateFSharpProjectParams(projectPath), cont)
--- end
---
--- function M.Fsdn(signature, cont)
---   return M.Call("fsharp/fsdn", M.FsdnRequest(signature), cont)
--- end
---
--- function M.F1Help(filePath, line, character, cont)
---   return M.Call("fsharp/f1Help", M.TextDocumentPositionParams(filePath, line, character), cont)
--- end
---
--- --- call to "fsharp/documentation"
--- --- first creates a TextDocumentPositionParams,
--- --- requests data about symbol at given position, used for InfoPanel
--- ---@param filePath string
--- ---@param line integer
--- ---@param character integer
--- ---@param cont any
--- ---@return nil
--- function M.CallFSharpDocumentation(filePath, line, character, cont)
---   return M.Call("fsharp/documentation", M.TextDocumentPositionParams(filePath, line, character), cont)
--- end
---
--- ---Calls "fsharp/documentationSymbol" Lsp endpoint on FsAutoComplete
--- ---creates a DocumentationForSymbolRequest then sends that request to FSAC
--- ---@param xmlSig string
--- ---@param assembly string
--- ---@param cont any
--- ---@return nil
--- function M.CallFSharpDocumentationSymbol(xmlSig, assembly, cont)
---   return M.Call("fsharp/documentationSymbol", M.DocumentationForSymbolRequest(xmlSig, assembly), cont)
--- end
-
-M.DotnetFile2Request  = function (projectPath, currentVirtualPath, newFileVirtualPath )
+function M.DotnetFile2Request(projectPath, currentVirtualPath, newFileVirtualPath)
   return {
     projectPath,
     currentVirtualPath,
-    newFileVirtualPath
+    newFileVirtualPath,
   }
-  end
+end
 
-function M.CallFSharpAddFileAbove(projectPath, currentVirtualPath, newFileVirtualPath )
-  return M.Call("fsharp/addFileAbove", M.DotnetFile2Request(projectPath, currentVirtualPath, newFileVirtualPath) )
+function M.CallFSharpAddFileAbove(projectPath, currentVirtualPath, newFileVirtualPath, handler)
+  return M.Call(
+    "fsharp/addFileAbove",
+    M.DotnetFile2Request(projectPath, currentVirtualPath, newFileVirtualPath),
+    handler
+  )
 end
 
 function M.CallFSharpSignature(filePath, line, character, handler)
   return M.Call("fsharp/signature", M.TextDocumentPositionParams(filePath, line, character), handler)
 end
 
-function M.CallFSharpSignatureData(filePath, line, character )
-  return M.Call("fsharp/signatureData", M.TextDocumentPositionParams(filePath, line, character))
+function M.CallFSharpSignatureData(filePath, line, character, handler)
+  return M.Call("fsharp/signatureData", M.TextDocumentPositionParams(filePath, line, character), handler)
 end
 
-function M.CallFSharpLineLens(projectPath )
-  return M.Call("fsharp/lineLens", M.CreateFSharpProjectParams(projectPath) )
+function M.CallFSharpLineLens(projectPath, handler)
+  return M.Call("fsharp/lineLens", M.CreateFSharpProjectParams(projectPath), handler)
 end
 
-function M.CallFSharpCompilerLocation()
-  return M.Call("fsharp/compilerLocation", nil )
+function M.CallFSharpCompilerLocation(handler)
+  return M.Call("fsharp/compilerLocation", {}, handler)
 end
 
 ---Calls "fsharp/compile" on the given project file
 ---@param projectPath string
 ---@return nil
-function M.CallFSharpCompileOnProjectFile(projectPath)
-  return M.Call("fsharp/compile", M.CreateFSharpProjectParams(projectPath))
+---@return table<integer, integer>, fun() 2-tuple:
+---  - Map of client-id:request-id pairs for all successful requests.
+---  - Function which can be used to cancel all the requests. You could instead
+---    iterate all clients and call their `cancel_request()` methods.
+function M.CallFSharpCompileOnProjectFile(projectPath, handler)
+  return M.Call("fsharp/compile", M.CreateFSharpProjectParams(projectPath), handler)
 end
 
 ---Calls "fsharp/workspacePeek" Lsp Endpoint of FsAutoComplete
@@ -1248,23 +1140,39 @@ end
 ---Call to "fsharp/workspaceLoad"
 ---@param projectFiles string[]  a string list of project files.
 ---@return nil
-function M.CallFSharpWorkspaceLoad(projectFiles)
-  return M.Call("fsharp/workspaceLoad", M.CreateFSharpWorkspaceLoadParams(projectFiles))
+---@return table<integer, integer>, fun() 2-tuple:
+---  - Map of client-id:request-id pairs for all successful requests.
+---  - Function which can be used to cancel all the requests. You could instead
+---    iterate all clients and call their `cancel_request()` methods.
+function M.CallFSharpWorkspaceLoad(projectFiles, handler)
+  return M.Call("fsharp/workspaceLoad", M.CreateFSharpWorkspaceLoadParams(projectFiles), handler)
 end
 
 ---call to "fsharp/project" - which, after using projectPath to create an FSharpProjectParms, loads given project
 ---@param projectPath string
 ---@return nil
-function M.CallFSharpProject(projectPath)
-  return M.Call("fsharp/project", M.CreateFSharpProjectParams(projectPath))
+---@return table<integer, integer>, fun() 2-tuple:
+---  - Map of client-id:request-id pairs for all successful requests.
+---  - Function which can be used to cancel all the requests. You could instead
+---    iterate all clients and call their `cancel_request()` methods.
+function M.CallFSharpProject(projectPath, handler)
+  return M.Call("fsharp/project", M.CreateFSharpProjectParams(projectPath), handler)
 end
 
-function M.Fsdn(signature)
-  return M.Call("fsharp/fsdn", M.FsdnRequest(signature))
+---@return table<integer, integer>, fun() 2-tuple:
+---  - Map of client-id:request-id pairs for all successful requests.
+---  - Function which can be used to cancel all the requests. You could instead
+---    iterate all clients and call their `cancel_request()` methods.
+function M.Fsdn(signature, handler)
+  return M.Call("fsharp/fsdn", M.FsdnRequest(signature), handler)
 end
 
-function M.F1Help(filePath, line, character)
-  return M.Call("fsharp/f1Help", M.TextDocumentPositionParams(filePath, line, character))
+---@return table<integer, integer>, fun() 2-tuple:
+---  - Map of client-id:request-id pairs for all successful requests.
+---  - Function which can be used to cancel all the requests. You could instead
+---    iterate all clients and call their `cancel_request()` methods.
+function M.F1Help(filePath, line, character, handler)
+  return M.Call("fsharp/f1Help", M.TextDocumentPositionParams(filePath, line, character), handler)
 end
 
 --- call to "fsharp/documentation"
@@ -1274,8 +1182,12 @@ end
 ---@param line integer
 ---@param character integer
 ---@return nil
-function M.CallFSharpDocumentation(filePath, line, character)
-  return M.Call("fsharp/documentation", M.TextDocumentPositionParams(filePath, line, character))
+---@return table<integer, integer>, fun() 2-tuple:
+---  - Map of client-id:request-id pairs for all successful requests.
+---  - Function which can be used to cancel all the requests. You could instead
+---    iterate all clients and call their `cancel_request()` methods.
+function M.CallFSharpDocumentation(filePath, line, character, handler)
+  return M.Call("fsharp/documentation", M.TextDocumentPositionParams(filePath, line, character), handler)
 end
 
 ---Calls "fsharp/documentationSymbol" Lsp endpoint on FsAutoComplete
@@ -1283,8 +1195,12 @@ end
 ---@param xmlSig string
 ---@param assembly string
 ---@return nil
-function M.CallFSharpDocumentationSymbol(xmlSig, assembly)
-  return M.Call("fsharp/documentationSymbol", M.DocumentationForSymbolRequest(xmlSig, assembly))
+---@return table<integer, integer>, fun() 2-tuple:
+---  - Map of client-id:request-id pairs for all successful requests.
+---  - Function which can be used to cancel all the requests. You could instead
+---    iterate all clients and call their `cancel_request()` methods.
+function M.CallFSharpDocumentationSymbol(xmlSig, assembly, handler)
+  return M.Call("fsharp/documentationSymbol", M.DocumentationForSymbolRequest(xmlSig, assembly), handler)
 end
 
 ---this should take the settings.FSharp table
@@ -1296,6 +1212,10 @@ end
 
 ---Loads the given projects list.
 ---@param projects string[] -- projects only
+---@return table<integer, integer>, fun() 2-tuple:
+---  - Map of client-id:request-id pairs for all successful requests.
+---  - Function which can be used to cancel all the requests. You could instead
+---    iterate all clients and call their `cancel_request()` methods.
 function M.LoadProjects(projects)
   if projects then
     for _, proj in ipairs(projects) do
