@@ -68,44 +68,43 @@ end
 ---@field Command string
 
 ---@class ProjectInfo.Info
-  --   Configuration = "Debug","Release"
+--   Configuration = "Debug","Release"
 ---@field Configuration string
-    --   IsPackable = true,
+--   IsPackable = true,
 ---@field IsPackable boolean
-    --   IsPublishable = true,
+--   IsPublishable = true,
 ---@field IsPublishable boolean
-    --   IsTestProject = false,
+--   IsTestProject = false,
 ---@field IsTestProject boolean
-    --   RestoreSuccess = true,
+--   RestoreSuccess = true,
 ---@field RestoreSuccess boolean
-    --   RunCmd = vim.NIL,
+--   RunCmd = vim.NIL,
 ---@field RunCmd ProjectInfo.Info.RunCmd|nil
-    --   TargetFramework = "netstandard2.0",
+--   TargetFramework = "netstandard2.0",
 ---@field TargetFramework string
-    --   TargetFrameworkIdentifier = ".NETStandard",
+--   TargetFrameworkIdentifier = ".NETStandard",
 ---@field TargetFrameworkIdentifier string
-    --   TargetFrameworkVersion = "v2.0",
+--   TargetFrameworkVersion = "v2.0",
 ---@field TargetFrameworkVersion string
-    --   TargetFrameworks = { "netstandard2.0" }
+--   TargetFrameworks = { "netstandard2.0" }
 ---@field TargetFrameworks  string[]
-
 
 ---@class ProjectInfo
 ---@field AdditionalInfo table
 ---@field Files string[]
 ---@field Info ProjectInfo.Info
 ---@field Items ProjectInfo.Item[]
-    -- full Output file path, usually with things like bin/debug/{TargetFramework}/{AssemblyName}.dll
+-- full Output file path, usually with things like bin/debug/{TargetFramework}/{AssemblyName}.dll
 ---@field Output string
-    -- OutputType = "lib", "exe"
+-- OutputType = "lib", "exe"
 ---@field OutputType string
-    -- PackageReferences = all the nuget package references
+-- PackageReferences = all the nuget package references
 ---@field PackageReferences PackageReference[]
-    -- Project path, absolute, not  relative.
+-- Project path, absolute, not  relative.
 ---@field Project string
-    -- ProjectReferences - all the other projects this project references.
+-- ProjectReferences - all the other projects this project references.
 ---@field ProjectReferences ProjectReference[]
-    -- References - all the dll's this project references.
+-- References - all the dll's this project references.
 ---@field References string[]
 
 ---@class ProjectDataTable
