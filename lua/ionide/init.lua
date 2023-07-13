@@ -490,6 +490,8 @@ M.DefaultServerSettings = {
   --     disableLongTooltip = true }
 
   inlayHints = {
+    --do these really annoy anyone? why not have em on?
+    enabled = true,
     typeAnnotations = true,
     -- Defaults to false, the more info the better, right?
     disableLongTooltip = false,
