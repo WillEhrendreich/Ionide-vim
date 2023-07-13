@@ -878,23 +878,27 @@ end
 function M.CreateHandlers()
   local h = {
     "fsharp/notifyWorkspace",
+    "fsharp/documentationSymbol",
     "fsharp/workspacePeek",
     "fsharp/workspaceLoad",
-    "textDocument/documentHighlight",
     "fsharp/compilerLocation",
     "fsharp/signature",
+    "textDocument/hover",
+    "textDocument/documentHighlight",
   }
   local r = {}
-  for _,method in ipairs(h) do
+  for _, method in ipairs(h) do
     r[method] = function(err, params, ctx, config)
       if method == "fsharp/compilerLocation" then
+        M[method](err or "No Error", params or "No Params", ctx or "No Context", config or "No Configs")
+      elseif method == "fsharp/documentationSymbol" then
         M[method](err or "No Error", params or "No Params", ctx or "No Context", config or "No Configs")
       else
         M[method](params)
       end
     end
   end
-    M.Handlers = vim.tbl_deep_extend("force", M.Handlers ,r)
+  M.Handlers = vim.tbl_deep_extend("force", M.Handlers, r)
   return r
 end
 
