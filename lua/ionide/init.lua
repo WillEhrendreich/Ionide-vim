@@ -950,25 +950,7 @@ neoconf.register({
 ---@type IonideOptions
 M.PassedInConfig = { settings = { FSharp = {} } }
 
--- M.MergedConfig = vim.deepcopy(M.DefaultLspConfig)
--- M.PassedInConfig = vim.deepcopy(M.DefaultLspConfig)
-
 M.Manager = nil
-
--- --- generates a key to look up the function call and assigns it to callbacks[newRandomIntKeyHere]
--- --- then returns the key it created
--- ---@param methodname string
--- ---@returns key integer
--- function M.RegisterCallback(methodname)
---   local rnd = os.time()
---   callbacks[rnd] = methodname
---   M.CallBackResults[rnd] = methodname
---   return rnd
--- end
-
---  function! s:PlainNotification(content)
---    return { 'Content': a:content }
--- endfunction
 
 ---@param content any
 ---@returns PlainNotification
@@ -1375,64 +1357,8 @@ function M.RegisterAutocmds()
     end,
   })
 end
-    -- local initialize_params = {
-    --   -- The process Id of the parent process that started the server. Is null if
-    --   -- the process has not been started by another process.  If the parent
-    --   -- process is not alive then the server should exit (see exit notification)
-    --   -- its process.
-    --   processId = uv.os_getpid(),
-    --   -- Information about the client
-    --   -- since 3.15.0
-    --   clientInfo = {
-    --     name = 'Neovim',
-    --     version = string.format('%s.%s.%s', version.major, version.minor, version.patch),
-    --   },
-    --   -- The rootPath of the workspace. Is null if no folder is open.
-    --   --
-    --   -- @deprecated in favour of rootUri.
-    --   rootPath = root_path or vim.NIL,
-    --   -- The rootUri of the workspace. Is null if no folder is open. If both
-    --   -- `rootPath` and `rootUri` are set `rootUri` wins.
-    --   rootUri = root_uri or vim.NIL,
-    --   -- The workspace folders configured in the client when the server starts.
-    --   -- This property is only available if the client supports workspace folders.
-    --   -- It can be `null` if the client supports workspace folders but none are
-    --   -- configured.
-    --   workspaceFolders = workspace_folders or vim.NIL,
-    --   -- User provided initialization options.
-    --   initializationOptions = config.init_options,
-    --   -- The capabilities provided by the client (editor or tool)
-    --   capabilities = config.capabilities,
-    --   -- The initial trace setting. If omitted trace is disabled ("off").
-    --   -- trace = "off" | "messages" | "verbose";
-    --   trace = valid_traces[config.trace] or 'off',
-    -- }
-    -- if config.before_init then
-    --   -- TODO(ashkan) handle errors here.
-    --   pcall(config.before_init, initialize_params, config)
-    -- end
-    --
-    -- --- @param method string
-    -- --- @param opts? {bufnr?: number}
-    -- client.supports_method = function(method, opts)
-    --   opts = opts or {}
-    --   local required_capability = lsp._request_name_to_capability[method]
-    --   -- if we don't know about the method, assume that the client supports it.
-    --   if not required_capability then
-    --     return true
-    --   end
-    --   if vim.tbl_get(client.server_capabilities or {}, unpack(required_capability)) then
-    --     return true
-    --   else
-    --     if client.dynamic_capabilities:supports_registration(method) then
-    --       return client.dynamic_capabilities:supports(method, opts)
-    --     end
-    --     return false
-    --   end
-    -- end
 
 function M.Initialize()
-
   if not vim.fn.has("nvim") then
     vim.notify("WARNING - This version of Ionide is only for NeoVim. please try Ionide/Ionide-Vim instead. ")
     return
