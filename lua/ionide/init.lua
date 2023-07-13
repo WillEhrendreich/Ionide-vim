@@ -1535,54 +1535,51 @@ autocmd("BufWritePost", {
   end,
 })
 
-  autocmd({"BufReadPost" }, {
-    desc = "FSharp start Ionide on fsharp_project load",
-    group = grp("FSProjStartIonide", { clear = true }),
-    pattern = "*.fsproj",
-    callback = function()
-      local bufnr = vim.api.nvim_get_current_buf()
-      local bufname = vim.fs.normalize(vim.api.nvim_buf_get_name(bufnr))
-      local projectRoot = vim.fs.normalize( M.GitFirstRootDir(bufname))
+autocmd({ "BufReadPost" }, {
+  desc = "FSharp start Ionide on fsharp_project load",
+  group = grp("FSProjStartIonide", { clear = true }),
+  pattern = "*.fsproj",
+  callback = function()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local bufname = vim.fs.normalize(vim.api.nvim_buf_get_name(bufnr))
+    local projectRoot = vim.fs.normalize(M.GitFirstRootDir(bufname))
 
-
-      local parentDir =vim.fs.normalize( vim.fs.dirname(bufname))
-      local closestFsFile =  vim.fs.find(function(name, path)
-        return name:match('.*%.fs$') end,
-        {limit = 1, type = 'file',upward = true,path= parentDir,stop= projectRoot })[1] or
-      (function()
-        local newFile = parentDir .. "/".. vim.inspect(os.time()).. "TempFileForProjectInitDeleteMe.fs"
-          vim.fn.writefile({}, newFile)
-        return newFile
-      end)()
-
-      ---@type integer
-      local closestFileBufNumber= vim.fn.bufadd(closestFsFile)
-      local ionideClientsList=vim.lsp.get_active_clients({name = "ionide"})
-      local isAleadyStarted = false
-      if ionideClientsList then
-
-        for _,client in ipairs(ionideClientsList) do
     -- M.notify("Searching for Ionide client already started for root path of " .. projectRoot )
+    local parentDir = vim.fs.normalize(vim.fs.dirname(bufname))
+    local closestFsFile = vim.fs.find(function(name, path)
+      return name:match(".*%.fs$")
+    end, { limit = 1, type = "file", upward = true, path = parentDir, stop = projectRoot })[1] or (function()
+      local newFile = parentDir .. "/" .. vim.inspect(os.time()) .. "TempFileForProjectInitDeleteMe.fs"
+      vim.fn.writefile({}, newFile)
+      return newFile
+    end)()
+
     -- M.notify("closest fs file is  " .. closestFsFile )
+    ---@type integer
+    local closestFileBufNumber = vim.fn.bufadd(closestFsFile)
+    local ionideClientsList = vim.lsp.get_active_clients({ name = "ionide" })
+    local isAleadyStarted = false
+    if ionideClientsList then
+      for _, client in ipairs(ionideClientsList) do
         local root = client.config.root_dir or ""
         if vim.fs.normalize(root) == projectRoot then
           -- M.notify("Ionide already started for root path of " .. projectRoot .. " \nClient Id: " .. vim.inspect(client.id))
           isAleadyStarted = true
           break
         end
-      else
       end
-      if not isAleadyStarted then
-        vim.defer_fn(
-          function ()
-            vim.cmd.tcd(projectRoot)
-            vim.cmd.e(closestFsFile)
-            vim.cmd.b(bufnr)
-            vim.cmd.bd(closestFileBufNumber)
-          end ,100)
-        end
-    end,
-  })
+    else
+    end
+    if not isAleadyStarted then
+      vim.defer_fn(function()
+        vim.cmd.tcd(projectRoot)
+        vim.cmd.e(closestFsFile)
+        vim.cmd.b(bufnr)
+        vim.cmd.bd(closestFileBufNumber)
+      end, 100)
+    end
+  end,
+})
 
 -- vim.api.nvim_create_autocmd("BufWritePost", {
 --   pattern = "*.fsproj",
