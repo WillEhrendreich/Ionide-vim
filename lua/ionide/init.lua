@@ -1360,22 +1360,21 @@ end
 
 function M.Initialize()
   if not vim.fn.has("nvim") then
-    vim.notify("WARNING - This version of Ionide is only for NeoVim. please try Ionide/Ionide-Vim instead. ")
+    M.notify("WARNING - This version of Ionide is only for NeoVim. please try Ionide/Ionide-Vim instead. ")
     return
   end
 
-  vim.notify("Ionide Initializing")
+  M.notify("Ionide Initializing")
 
-  vim.notify("Ionide calling updateServerConfig...")
+  M.notify("Ionide calling updateServerConfig...")
   M.UpdateServerConfig(M.MergedConfig.settings.FSharp)
 
-  vim.notify("Ionide calling SetKeymaps...")
+  M.notify("Ionide calling SetKeymaps...")
   M.SetKeymaps()
-  vim.notify("Ionide calling registerAutocmds...")
+  M.notify("Ionide calling registerAutocmds...")
   M.RegisterAutocmds()
-  local thisBufnr=vim.api.nvim_get_current_buf()
-  local thisBufname=vim.api.nvim_buf_get_name(thisBufnr)
-  vim.notify("Ionide calling custom WorkspacePeekRequest in relation to file .. ".. vim.fn.fnamemodify(thisBufname,":p:."))
+  local thisBufnr = vim.api.nvim_get_current_buf()
+  local thisBufname = vim.api.nvim_buf_get_name(thisBufnr)
   M.notify(
     "Ionide calling custom WorkspacePeekRequest in relation to file .. " .. vim.fn.fnamemodify(thisBufname, ":p:.")
   )
