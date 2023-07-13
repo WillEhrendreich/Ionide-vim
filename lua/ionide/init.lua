@@ -619,11 +619,11 @@ M["fsharp/notifyWorkspace"] = function (payload)
 
       for proj, projInfoData in pairs(M.Projects) do
         local dir = vim.fs.dirname(proj)
-          if vim.tbl_contains(M.projectFolders,dir) then
-          else
-          table.insert(M.projectFolders,dir)
-          end
+        if vim.tbl_contains(M.projectFolders, dir) then
+        else
+          table.insert(M.projectFolders, dir)
         end
+      end
       -- M.UpdateServerConfig(M.MergedConfig.settings.FSharp)
       -- print("[Ionide] after calling updateServerconfig, workspace looks like:   " .. vim.inspect(Workspace))
       local projectCount = vim.tbl_count(M.Projects)
