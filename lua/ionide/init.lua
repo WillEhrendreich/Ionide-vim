@@ -385,7 +385,7 @@ M.DefaultServerSettings = {
     -- cachedTypeCheckCount = 200,
     conserveMemory = true,
     silencedLogs = {},
-    -- parallelReferenceResolution = true,
+    parallelReferenceResolution = true,
     -- "FSharp.fsac.sourceTextImplementation": {
     --        "default": "NamedText",
     --    "description": "EXPERIMENTAL. Enables the use of a new source text implementation. This may have better memory characteristics. Requires restart.",
