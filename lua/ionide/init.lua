@@ -1319,18 +1319,30 @@ function M.RegisterAutocmds()
     end,
   })
 
-
-autocmd({ "CursorHold,InsertLeave" }, {
-  desc = "URL Highlighting",
-  group = grp("FSharp_HighlightUrl", { clear = true }),
-  pattern = "*.fs,*.fsi,*.fsx",
-  callback = function()
-    vim.defer_fn(function()
-      M.OnCursorMove()
-      -- vim.notify("lsp codelens refreshing")
-    end, 1000)
-  end,
-})
+  autocmd({ "CursorHold,InsertLeave" }, {
+    desc = "Ionide Show Signature on cursor move or hold",
+    group = grp("FSharp_ShowSignatureOnCursorMoveOrHold", { clear = true }),
+    pattern = "*.fs,*.fsi,*.fsx",
+    callback = function()
+      if M.MergedConfig.IonideNvimSettings.ShowSignatureOnCursorMove == true then
+        vim.defer_fn(function()
+          local pos = vim.inspect_pos(
+            vim.api.nvim_get_current_buf(),
+            nil,
+            nil,
+            ---@type InspectorFilter
+            {
+              extmarks = false,
+              syntax = false,
+              semantic_tokens = false,
+              treesitter = false,
+            }
+          )
+          M.CallFSharpSignature(vim.uri_from_bufnr(pos.buffer), pos.col - 1, pos.row - 1)
+        end, 1000)
+      end
+    end,
+  })
 
   autocmd({ "BufReadPost" }, {
     desc = "Apply Recommended Colorscheme to Lsp Diagnostic and Code lenses.",
