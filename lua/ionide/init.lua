@@ -157,7 +157,6 @@ end
 ---@class PlainNotification
 ---@field Content string
 
-
 -- type TestAdapterEntry<'range> =
 --   { Name: string
 --     Range: 'range
@@ -174,9 +173,6 @@ end
 ---@field List boolean
 ---@field ModuleType string
 ---@field Type string -- usually "Expecto"|"XUnit"|"NUnit"
-
-
-
 
 -- /// Notification when a `TextDocument` is completely analyzed:
 -- /// F# Compiler checked file & all Analyzers (like `UnusedOpensAnalyzer`) are done.
@@ -203,7 +199,6 @@ end
 --   }
 ---@class FSharpProjectParams
 ---@field Project lsp.TextDocumentIdentifier
-
 
 -- type HighlightingRequest =
 --   { TextDocument: TextDocumentIdentifier }
@@ -311,7 +306,6 @@ end
 ---@field FsiKeymapSend string
 ---@field FsiKeymapToggle string
 
-
 ---@class IonideOptions: lspconfig.options.fsautocomplete
 ---@field IonideNvimSettings IonideNvimSettings
 
@@ -319,7 +313,6 @@ end
 --   ---@param options lspconfig.options.fsautocomplete
 --   setup = function(options) end,
 -- }
-
 
 ---determines if input string ends with the suffix given.
 ---@param s string
@@ -368,7 +361,11 @@ M.projectFolders = {}
 M.Projects = {}
 
 ---@table<string,function>
-M.Handlers = {[""]=function(err,rs,ctx,config) vim.notify("if you're seeing this called, something went wrong, it's key is literally an empty string.  ") end}
+M.Handlers = {
+  [""] = function(err, rs, ctx, config)
+    M.notify("if you're seeing this called, something went wrong, it's key is literally an empty string.  ")
+  end,
+}
 
 ---@type IonideOptions
 M.MergedConfig = {}
@@ -439,8 +436,8 @@ M.DefaultServerSettings = {
   --     DisableInMemoryProjectReferences: bool option false|
   -- disableInMemoryProjectReferences = false,
 
-  --     LineLens: LineLensConfig option
-  -- lineLens = { enabled = "always", prefix = "ll//" },
+  -- LineLens: LineLensConfig option
+  lineLens = { enabled = "always", prefix = "ll//" },
 
   -- enables the use of .Net Core SDKs for script file type-checking and evaluation,
   -- otherwise the .Net Framework reference lists will be used.
@@ -466,7 +463,6 @@ M.DefaultServerSettings = {
   -- which effectively just prepends "--compilertool:" to each entry and tells the FSharpCompilerServiceChecker about it and the fsiExtraParameters
   fsiCompilerToolLocations = {},
 
-
   -- TooltipMode: string option
   -- TooltipMode can be one of the following:
   -- "full" ->  this provides the most verbose output
@@ -488,6 +484,7 @@ M.DefaultServerSettings = {
     signature = { enabled = true },
     references = { enabled = true },
   },
+
   --     InlayHints: InlayHintDto option
   --type InlayHintsConfig =
   -- { typeAnnotations: bool
@@ -497,7 +494,6 @@ M.DefaultServerSettings = {
   --   { typeAnnotations = true
   --     parameterNames = true
   --     disableLongTooltip = true }
-
   inlayHints = {
     --do these really annoy anyone? why not have em on?
     enabled = true,
@@ -612,18 +608,16 @@ M["fsharp/notifyWorkspace"] = function (payload)
       -- -- local dir = vim.fs.dirname(content.Data.Project)
       -- print("after attempting to reassign table value it looks like this : " .. vim.inspect(Workspace))
     elseif content.Kind == "project" then
-      local k= content.Data.Project
-      local projInfo ={}
-       projInfo[k] = content.Data
+      local k = content.Data.Project
+      local projInfo = {}
+      projInfo[k] = content.Data
 
-      M.Projects = vim.tbl_deep_extend("force",M.Projects ,projInfo)
-
+      M.Projects = vim.tbl_deep_extend("force", M.Projects, projInfo)
     elseif content.Kind == "workspaceLoad" and content.Data.Status == "finished" then
       -- print("[Ionide] calling updateServerConfig ... ")
       -- print("[Ionide] before calling updateServerconfig, workspace looks like:   " .. vim.inspect(Workspace))
 
       for proj, projInfoData in pairs(M.Projects) do
-
         local dir = vim.fs.dirname(proj)
           if vim.tbl_contains(M.projectFolders,dir) then
           else
@@ -633,7 +627,9 @@ M["fsharp/notifyWorkspace"] = function (payload)
       -- M.UpdateServerConfig(M.MergedConfig.settings.FSharp)
       -- print("[Ionide] after calling updateServerconfig, workspace looks like:   " .. vim.inspect(Workspace))
       local projectCount = vim.tbl_count(M.Projects)
-      local projNames =vim.tbl_map(function (s)return vim.fn.fnamemodify(s,":P:.") end  ,vim.tbl_keys(M.Projects))
+      local projNames = vim.tbl_map(function(s)
+        return vim.fn.fnamemodify(s, ":P:.")
+      end, vim.tbl_keys(M.Projects))
       if projectCount > 0 then
         if projectCount > 1 then
           vim.notify("[Ionide] Loaded " .. projectCount .. " projects:\n" .. vim.inspect(projNames))
@@ -643,13 +639,13 @@ M["fsharp/notifyWorkspace"] = function (payload)
       else
         vim.notify("[Ionide] Workspace is empty! Something went wrong. ")
       end
-      local deleteMeFiles = vim.fs.find(function(name, _) return name:match('.*TempFileForProjectInitDeleteMe.fs$') end ,{type= "file" })
+      local deleteMeFiles = vim.fs.find(function(name, _)
+        return name:match(".*TempFileForProjectInitDeleteMe.fs$")
+      end, { type = "file" })
       if deleteMeFiles then
-      for _,file in ipairs(deleteMeFiles) do
-        pcall (os.remove,file)
+        for _, file in ipairs(deleteMeFiles) do
+          pcall(os.remove, file)
         end
-
-
       end
     end
   end
@@ -1343,7 +1339,7 @@ end
 
 ---applies a recommended color scheme for diagnostics and CodeLenses
 function M.ApplyRecommendedColorscheme()
-vim.cmd(    [[
+  vim.cmd([[
     highlight! LspDiagnosticsDefaultError ctermbg=Red ctermfg=White
     highlight! LspDiagnosticsDefaultWarning ctermbg=Yellow ctermfg=Black
     highlight! LspDiagnosticsDefaultInformation ctermbg=LightBlue ctermfg=Black
@@ -1351,9 +1347,6 @@ vim.cmd(    [[
     highlight! default link LspCodeLens Comment
 ]])
 end
-
-
-
 
 function M.RegisterAutocmds()
   -- if M.LspCodelens == true or M.LspCodelens == 1 then
@@ -1409,7 +1402,6 @@ autocmd({ "CursorHold,InsertLeave" }, {
       end
     end,
   })
-
 end
     -- local initialize_params = {
     --   -- The process Id of the parent process that started the server. Is null if
@@ -1502,7 +1494,6 @@ function M.Initialize()
   )
 end
 
-
 -- M.Manager = nil
 function M.AutoStartIfNeeded(config)
   local auto_setup = (M.MergedConfig.IonideNvimSettings.LspAutoSetup == true)
@@ -1516,7 +1507,6 @@ function M.DelegateToLspConfig(config)
   local lspconfig = require("lspconfig")
   local configs = require("lspconfig.configs")
   if not configs["ionide"] then
-
   -- vim.notify("creating entry in lspconfig configs for ionide ")
     configs["ionide"] = {
       default_config = config,
@@ -1536,15 +1526,15 @@ vim.filetype.add({
   extension = {
     fsproj = function(_, _)
       return "fsharp_project",
-          function(bufnr)
-            vim.bo[bufnr].syn = "xml"
-            vim.bo[bufnr].ro = false
-            vim.b[bufnr].readonly = false
-            vim.bo[bufnr].commentstring = "<!--%s-->"
-            -- vim.bo[bufnr].comments = "<!--,e:-->"
-            vim.opt_local.foldlevelstart = 99
-            vim.w.fdm = "syntax"
-          end
+        function(bufnr)
+          vim.bo[bufnr].syn = "xml"
+          vim.bo[bufnr].ro = false
+          vim.b[bufnr].readonly = false
+          vim.bo[bufnr].commentstring = "<!--%s-->"
+          -- vim.bo[bufnr].comments = "<!--,e:-->"
+          vim.opt_local.foldlevelstart = 99
+          vim.w.fdm = "syntax"
+        end
     end,
   },
 })
@@ -1553,47 +1543,48 @@ vim.filetype.add({
   extension = {
     fs = function(path, bufnr)
       return "fsharp",
-          function(bufnr)
-            if not vim.g.filetype_fs then
-              vim.g["filetype_fs"] = "fsharp"
-            end
-            if not vim.g.filetype_fs == "fsharp" then
-              vim.g["filetype_fs"] = "fsharp"
-            end
-            vim.w.fdm = "syntax"
-            -- comment settings
-            vim.bo[bufnr].formatoptions = "croql"
-            -- vim.bo[bufnr].commentstring = "(*%s*)"
-            vim.bo[bufnr].commentstring = "//%s"
-            vim.bo[bufnr].comments = [[s0:*\ -,m0:*\ \ ,ex0:*),s1:(*,mb:*,ex:*),:\/\/\/,:\/\/]]
+        function(bufnr)
+          if not vim.g.filetype_fs then
+            vim.g["filetype_fs"] = "fsharp"
           end
+          if not vim.g.filetype_fs == "fsharp" then
+            vim.g["filetype_fs"] = "fsharp"
+          end
+          vim.w.fdm = "syntax"
+          -- comment settings
+          vim.bo[bufnr].formatoptions = "croql"
+          -- vim.bo[bufnr].commentstring = "(*%s*)"
+          vim.bo[bufnr].commentstring = "//%s"
+          vim.bo[bufnr].comments = [[s0:*\ -,m0:*\ \ ,ex0:*),s1:(*,mb:*,ex:*),:\/\/\/,:\/\/]]
+        end
     end,
     fsx = function(path, bufnr)
       return "fsharp",
-          function(bufnr)
-            if not vim.g.filetype_fs then
-              vim.g["filetype_fsx"] = "fsharp"
-            end
-            if not vim.g.filetype_fs == "fsharp" then
-              vim.g["filetype_fsx"] = "fsharp"
-            end
-            vim.w.fdm = "syntax"
-            -- comment settings
-            vim.bo[bufnr].formatoptions = "croql"
-            vim.bo[bufnr].commentstring = "//%s"
-            -- vim.bo[bufnr].commentstring = "(*%s*)"
-            vim.bo[bufnr].comments = [[s0:*\ -,m0:*\ \ ,ex0:*),s1:(*,mb:*,ex:*),:\/\/\/,:\/\/]]
+        function(bufnr)
+          if not vim.g.filetype_fs then
+            vim.g["filetype_fsx"] = "fsharp"
           end
+          if not vim.g.filetype_fs == "fsharp" then
+            vim.g["filetype_fsx"] = "fsharp"
+          end
+          vim.w.fdm = "syntax"
+          -- comment settings
+          vim.bo[bufnr].formatoptions = "croql"
+          vim.bo[bufnr].commentstring = "//%s"
+          -- vim.bo[bufnr].commentstring = "(*%s*)"
+          vim.bo[bufnr].comments = [[s0:*\ -,m0:*\ \ ,ex0:*),s1:(*,mb:*,ex:*),:\/\/\/,:\/\/]]
+        end
     end,
   },
 })
 
-
 autocmd("BufWritePost", {
-    pattern = "*.fsproj",
-    desc = "FSharp Auto refresh on project save",
-    group = vim.api.nvim_create_augroup("FSProjRefreshOnProjectSave", { clear = true }),
-    callback = function() M.OnFSProjSave() end
+  pattern = "*.fsproj",
+  desc = "FSharp Auto refresh on project save",
+  group = vim.api.nvim_create_augroup("FSProjRefreshOnProjectSave", { clear = true }),
+  callback = function()
+    M.OnFSProjSave()
+  end,
 })
 
   autocmd({"BufReadPost" }, {
@@ -1627,10 +1618,9 @@ autocmd("BufWritePost", {
         for _,client in ipairs(ionideClientsList) do
         local root = client.config.root_dir or ""
         if vim.fs.normalize(root) == projectRoot then
-            -- vim.notify("Ionide already started for root path of " .. projectRoot .. " \nClient Id: " .. vim.inspect(client.id))
-            isAleadyStarted = true
-            break
-          end
+          -- M.notify("Ionide already started for root path of " .. projectRoot .. " \nClient Id: " .. vim.inspect(client.id))
+          isAleadyStarted = true
+          break
         end
       else
       end
@@ -1767,7 +1757,6 @@ local function create_manager(config)
     bufnr = bufnr or api.nvim_get_current_buf()
     ---@diagnostic disable-next-line
     if api.nvim_buf_get_option(bufnr, "buftype") == "nofile" then
-
       return
     end
     local root_dir = get_root_dir(api.nvim_buf_get_name(bufnr), bufnr)
@@ -2317,7 +2306,6 @@ function M.SendFsi(text)
   end
 end
 
-
 function M.GetCompleteBuffer()
   return vim.api.nvim_buf_get_lines(vim.api.nvim_get_current_buf(), 1, -1, false)
 end
@@ -2419,7 +2407,9 @@ end
 --                • preview: (function) Preview callback for 'inccommand'
 --                  |:command-preview|
 
-uc("IonideCompilerLocation", function () M.CallFSharpCompilerLocation() end, {  desc = "Get compiler location data from FSAC" })
+uc("IonideCompilerLocation", function()
+  M.CallFSharpCompilerLocation()
+end, { desc = "Get compiler location data from FSAC" })
 
 uc("IonideSendFSI", M.SendFsi, { desc = "Ionide - Send text to FSharp Interactive" })
 uc("IonideToggleFSI", M.ToggleFsi, { desc = "Ionide - Toggle FSharp Interactive" })
@@ -2444,8 +2434,8 @@ uc("IonideLoadProjects", function(opts)
   else
     print(vim.inspect(opts))
   end
-end, {
-})
+end, {})
+
 uc("IonideShowLoadedProjects", M.ShowLoadedProjects, {})
 uc("IonideShowNvimSettings", M.ShowNvimSettings, {})
 uc("IonideShowAllLoadedProjectInfo", function() vim.notify(vim.inspect(M.Projects)) end, {desc ="Show all currently loaded Project Info, as far as Neovim knows or cares"})
@@ -2461,8 +2451,6 @@ uc("IonideWorkspacePeek", function()
 end, { desc = "Request a workspace peek from Lsp" })
 
 return M
-
-
 
   --
   -- (function()
