@@ -329,6 +329,7 @@ local function stringEndsWith(s, suffix)
   return s:sub(- #suffix) == suffix
 end
 
+local M = {}
 
 function M.notify(msg, level, opts)
   local safeMessage = "[Ionide] - "
@@ -342,7 +343,6 @@ end
 
 
 
-local M = {}
 
 M.getCurrentBufferIonideClient = function()
   local client = vim.lsp.get_active_clients({bufnr = vim.api.nvim_get_current_buf() or 0, name = M.DefaultLspConfig.name or "ionide" })[1]
