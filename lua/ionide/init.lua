@@ -334,12 +334,113 @@ function M.notify(msg, level, opts)
   vim.notify(safeMessage, level, opts)
 end
 
+---wholesale taken from  https://github.com/folke/edgy.nvim/blob/main/lua/edgy/util.lua
+---@generic F: fun()
+---@param fn F
+---@param max_retries? number
+---@return F
+function M.with_retry(fn, max_retries)
+  max_retries = max_retries or 3
+  local retries = 0
+  local function try()
+    local ok, ret = pcall(fn)
+    if ok then
+      retries = 0
+    else
+      if retries >= max_retries or require("edgy.config").debug then
+        M.error(ret)
+      end
+      if retries < max_retries then
+        return vim.schedule(try)
+      end
+    end
+  end
+  return try
+end
 
+---@generic F: fun()
+---@param fn F
+---@return F
+function M.noautocmd(fn)
+  return function(...)
+    vim.o.eventignore = "all"
+    local ok, ret = pcall(fn, ...)
+    vim.o.eventignore = ""
+    if not ok then
+      error(ret)
+    end
+    return ret
+  end
+end
 
+--- @generic F: function
+--- @param fn F
+--- @param ms? number
+--- @return F
+function M.throttle(fn, ms)
+  ms = ms or 200
+  local timer = assert(vim.loop.new_timer())
+  local waiting = 0
+  return function()
+    if timer:is_active() then
+      waiting = waiting + 1
+      return
+    end
+    waiting = 0
+    fn() -- first call, execute immediately
+    timer:start(ms, 0, function()
+      if waiting > 1 then
+        vim.schedule(fn) -- only execute if there are calls waiting
+      end
+    end)
+  end
+end
 
-  local client = vim.lsp.get_active_clients({bufnr = vim.api.nvim_get_current_buf() or 0, name = M.DefaultLspConfig.name or "ionide" })[1]
-  if client then return client
+--- @generic F: function
+--- @param fn F
+--- @param ms? number
+--- @return F
+function M.debounce(fn, ms)
+  ms = ms or 50
+  local timer = assert(vim.loop.new_timer())
+  local waiting = 0
+  return function()
+    if timer:is_active() then
+      waiting = waiting + 1
+    else
+      waiting = 0
+      fn()
+    end
+    timer:start(ms, 0, function()
+      if waiting then
+        vim.schedule(fn) -- only execute if there are calls waiting
+      end
+    end)
+  end
+end
+
 M.getIonideClientAttachedToCurrentBufferOrFirstInActiveClients = function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  -- local bufname = vim.fs.normalize(vim.api.nvim_buf_get_name(bufnr))
+  -- local projectRoot = vim.fs.normalize(M.GitFirstRootDir(bufname))
+  local ionideClientsList = vim.lsp.get_active_clients({ name = "ionide" })
+  if ionideClientsList then
+    if #ionideClientsList > 1 then
+      for _, client in ipairs(ionideClientsList) do
+        if vim.list_contains(vim.tbl_keys(client.attached_buffers), bufnr) then
+          return client
+        end
+        -- local root = client.config.root_dir or ""
+        -- if vim.fs.normalize(root) == projectRoot then
+        --   return client
+        -- end
+      end
+    else
+      if ionideClientsList[1] then
+        return ionideClientsList[1]
+      end
+      return nil
+    end
   else
     return nil
   end
@@ -585,6 +686,164 @@ local function split_lines(value)
   return vim.split(value, "\n", { trimempty = true })
 end
 
+---matches a document signature command request originally meant for vscode's commands
+---@param s string
+---@return string|nil, string|nil
+local function matchFsharpDocSigRequest(s)
+  local link_pattern = "<a href='command:(.-)%?(.-)'>"
+  return string.match(s, link_pattern)
+end
+local function returnFuncNameToCallFromCapture(s)
+  local result = ((s or ""):gsub("%.", "/")) -- print("funcName match result : " .. result)
+  result = string.gsub(result, "showDocumentation", "documentationSymbol")
+
+  return result
+end
+---comment
+---@param input string
+---@return string
+local function unHtmlify(input)
+  input = input or ""
+  -- print("unHtmlify input: " .. input)
+  local result
+  if #input > 2 then
+    result = input:gsub("%%%x%x", function(entity)
+      entity = entity or ""
+      if #entity > 2 then
+        return string.char(tonumber(entity:sub(2), 16))
+      else
+        return entity
+      end
+    end)
+  else
+    result = input
+  end
+
+  -- print("unHtmlify result: " .. result)
+  return result
+end
+--- gets the various parts given by hover request and returns them
+---@param input_string string
+---function name
+---@return string
+---escapedHtml
+---@return string
+---DocumentationForSymbolRequest
+---@return FSharpDocumentationForSymbolRequest
+---label
+---@return string
+local function parse_string(input_string)
+  local function_capture, json_capture = matchFsharpDocSigRequest(input_string)
+  if function_capture then
+    M.notify(function_capture)
+    if json_capture then
+      M.notify(json_capture)
+      local function_name = returnFuncNameToCallFromCapture(function_capture)
+      local unHtml = unHtmlify(json_capture)
+      unHtml = unHtml
+      -- print("unHtml :", unHtml)
+      local decoded = (vim.json.decode(unHtml) or {
+        {
+          XmlDocSig = "NoProperSigGiven",
+          AssemblyName = "NoProperAssemblyGiven",
+        },
+      })[1]
+      -- M.notify("after decode: " .. vim.inspect(decoded))
+      ---@type FSharpDocumentationForSymbolRequest
+      local decoded_json = M.DocumentationForSymbolRequest(decoded.XmlDocSig, decoded.AssemblyName)
+      M.notify({ "as symbolrequest: ", decoded_json })
+      local label_text = input_string:match(">(.-)<")
+      return function_name, unHtml, decoded_json, label_text
+    else
+      return input_string, "", M.DocumentationForSymbolRequest("NoProperSigGiven", "NoProperAssemblyGiven"), ""
+    end
+    return input_string, "", M.DocumentationForSymbolRequest("NoProperSigGiven", "NoProperAssemblyGiven"), ""
+  end
+  return input_string, "", M.DocumentationForSymbolRequest("NoProperSigGiven", "NoProperAssemblyGiven"), ""
+end
+
+function M.ParseAndReformatShowDocumentationFromHoverResponseContentLines(input, contents)
+  -- -- value = string.gsub(value, "\r\n?", "\n")
+  -- local thisIonide = vim.lsp.get_active_clients({ name = "ionide" })[1]
+  local result
+  contents = contents or {}
+
+  if type(input) == "string" then
+    -- local lines = vim.split(value, "\n", { trimempty = true })
+    local parsedOrFunctionName, escapedHtml, decodedJsonTable, labelText = parse_string(input)
+    if input == parsedOrFunctionName then
+      -- print("no Match for line " .. line)
+      result = input
+    else
+      if decodedJsonTable then
+        -- result = ""
+        --   .. " "
+        --   .. "FunctionToCall: "
+        --   .. parsedOrFunctionName
+        --   .. " WithParams: "
+        --   .. vim.inspect(decodedJsonTable)
+        -- if not line == parsedOrFunctionName then
+        -- print("decoded json looks like : " .. vim.inspect(decodedJsonTable))
+        -- print(decodedJsonTable.XmlDocSig, decodedJsonTable.AssemblyName)
+        -- if thisIonide then
+        -- M.DocumentationForSymbolRequest(decodedJsonTable.XmlDocSig, decodedJsonTable.AssemblyName)
+        vim.schedule_wrap(function()
+          vim.lsp.buf_request(0, parsedOrFunctionName, decodedJsonTable, function(e, r)
+            result = vim.inspect(e) .. vim.inspect(r)
+            M.notify("results from request " .. vim.inspect(parsedOrFunctionName) .. ":" .. result)
+            table.insert(contents, result)
+          end)
+        end)
+        -- else
+        -- print("noActiveIonide.. probably testing ")
+        -- end
+      else
+        print("no decoded json")
+      end
+    end
+  else
+    -- MarkupContent
+    if input.kind then
+      -- The kind can be either plaintext or markdown.
+      -- If it's plaintext, then wrap it in a <text></text> block
+
+      -- Some servers send input.value as empty, so let's ignore this :(
+      local value = input.value or ""
+
+      if input.kind == "plaintext" then
+        -- wrap this in a <text></text> block so that stylize_markdown
+        -- can properly process it as plaintext
+        value = string.format("<text>\n%s\n</text>", value)
+      end
+
+      -- assert(type(value) == 'string')
+      vim.list_extend(contents, split_lines(value))
+      -- MarkupString variation 2
+    elseif input.language then
+      -- Some servers send input.value as empty, so let's ignore this :(
+      -- assert(type(input.value) == 'string')
+      table.insert(contents, "```" .. input.language)
+      vim.list_extend(contents, split_lines(input.value or ""))
+      table.insert(contents, "```")
+      -- By deduction, this must be MarkedString[]
+    else
+      for _, marked_string in ipairs(input) do
+        M.ParseAndReformatShowDocumentationFromHoverResponseContentLines(marked_string, contents)
+      end
+    end
+    if (contents[1] == "" or contents[1] == nil) and #contents == 1 then
+      return {}
+    end
+  end
+  return contents
+end
+
+-- print(vim.inspect(parselinesForfsharpDocs({
+--   "this line should be left alone ",
+--   "<a href='command:fsharp.showDocumentation?%5B%7B%20%22XmlDocSig%22%3A%20%22T%3AFabload.Main.CLIArguments%22%2C%20%22AssemblyName%22%3A%20%22main%22%20%7D%5D'>Open the documentation</a>",
+--   "this line should be left alone after the thingy ",
+-- })))
+--
 --- Handlers ---
 
 --see: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_documentHighlight
