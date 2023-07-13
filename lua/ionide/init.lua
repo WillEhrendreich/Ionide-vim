@@ -337,13 +337,12 @@ end
 
 
 
-M.getCurrentBufferIonideClient = function()
   local client = vim.lsp.get_active_clients({bufnr = vim.api.nvim_get_current_buf() or 0, name = M.DefaultLspConfig.name or "ionide" })[1]
   if client then return client
+M.getIonideClientAttachedToCurrentBufferOrFirstInActiveClients = function()
   else
     return nil
   end
-
 end
 
 M.getIonideClientConfigRootDirOrCwd = function()
