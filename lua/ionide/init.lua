@@ -588,9 +588,12 @@ end
 --- Handlers ---
 
 --see: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#textDocument_documentHighlight
- M["textDocument/documentHighlight"]= function(range, _)
-  local u = require("vim.lsp.util")
-  u.buf_highlight_references(0, range or {}, "utf-16")
+M["textDocument/documentHighlight"] = function(error, result, context, config)
+  if not error then
+    vim.lsp.handlers["textDocument/documentHighlight"](error, result, context, config)
+  end
+end
+
 end
 
   vim.notify("handling notifyWorkspace")
