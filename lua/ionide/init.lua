@@ -593,8 +593,8 @@ end
   u.buf_highlight_references(0, range or {}, "utf-16")
 end
 
-M["fsharp/notifyWorkspace"] = function (payload)
   vim.notify("handling notifyWorkspace")
+M["fsharp/notifyWorkspace"] = function(payload)
   local content = vim.json.decode(payload.content)
   -- vim.notify("notifyWorkspace Decoded content is : \n"..vim.inspect(content))
   if content then
