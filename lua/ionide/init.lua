@@ -974,7 +974,7 @@ function M.TextDocumentIdentifier(path)
   vim.o.shellslash = usr_ss_opt
 
   ---@type lsp.TextDocumentIdentifier
-  return { Uri = (uri) }
+  return { Uri = uri }
 end
 
 ---Creates an lsp.Position from a line and character number
@@ -1574,12 +1574,13 @@ local function create_manager(config)
 
   function M.Autostart()
     ---@type string
-    local root_dir = vim.fs.normalize(get_root_dir(api.nvim_buf_get_name(0), api.nvim_get_current_buf()) or util.path.dirname(vim.fn.fnamemodify("%",":p")) or vim.fn.getcwd())
+    local root_dir = vim.fs.normalize(
+      get_root_dir(api.nvim_buf_get_name(0), api.nvim_get_current_buf())
+        or util.path.dirname(vim.fn.fnamemodify("%", ":p"))
+        or vim.fn.getcwd()
+    )
     api.nvim_command(
-      string.format(
-        "autocmd %s lua require'ionide'.manager.try_add_wrapper()",
-        "BufReadPost " .. root_dir .. "/*"
-      )
+      string.format("autocmd %s lua require'ionide'.manager.try_add_wrapper()", "BufReadPost " .. root_dir .. "/*")
     )
     for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
       local buf_dir = api.nvim_buf_get_name(bufnr)
