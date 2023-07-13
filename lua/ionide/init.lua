@@ -22,8 +22,7 @@ if util == nil then
   lspconfig_is_present = false
   util = require("ionide.util")
 end
-local neotree =
-  tryRequire("neotree.nvim")
+local neotree = tryRequire("neotree.nvim")
 
 local neoconf = tryRequire("neoconf.plugins")
 if neoconf == nil then
