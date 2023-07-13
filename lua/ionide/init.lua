@@ -349,9 +349,9 @@ end
 M.getIonideClientConfigRootDirOrCwd = function()
   local ionide = M.getIonideClientAttachedToCurrentBufferOrFirstInActiveClients()
   if ionide then
-   return ionide.config.root_dir
+    return vim.fs.normalize(ionide.config.root_dir or "")
   else
-   return vim.fn.getcwd()
+    return vim.fs.normalize(vim.fn.getcwd())
   end
 end
 
