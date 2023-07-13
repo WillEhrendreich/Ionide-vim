@@ -937,13 +937,15 @@ M.DefaultLspConfig = {
 }
 
 neoconf.register({
-  on_schema=function(schema)
-  if schema then
-    if schema.import then
-    schema:import("ionide",M.DefaultLspConfig)
-        end
+  on_schema = function(schema)
+    if schema then
+      ---@diagnostic disable-next-line
+      if schema.import then
+        ---@diagnostic disable-next-line
+        schema:import("ionide", M.DefaultLspConfig)
+      end
     end
-end
+  end,
 })
 ---@type IonideOptions
 M.PassedInConfig = { settings = { FSharp = {} } }
