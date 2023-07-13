@@ -1713,13 +1713,9 @@ function M.InitializeDefaultFsiKeymapSettings()
     elseif M.MergedConfig.IonideNvimSettings.FsiKeymap == "custom" then
       M.MergedConfig.IonideNvimSettings.FsiKeymap = "none"
       if not M.MergedConfig.IonideNvimSettings.FsiKeymapSend then
-        vim.cmd.echoerr(
-          "FsiKeymapSend not set. good luck with that I dont have a nice way to change it yet. sorry. "
-        )
+        vim.cmd.echoerr("FsiKeymapSend not set. good luck with that I dont have a nice way to change it yet. sorry. ")
       elseif not M.MergedConfig.IonideNvimSettings.FsiKeymapToggle then
-        vim.cmd.echoerr(
-          "FsiKeymapToggle not set. good luck with that I dont have a nice way to change it yet. sorry. "
-        )
+        vim.cmd.echoerr("FsiKeymapToggle not set. good luck with that I dont have a nice way to change it yet. sorry. ")
       else
         M.MergedConfig.IonideNvimSettings.FsiKeymap = "custom"
       end
@@ -1884,7 +1880,8 @@ function M.OpenFsi(returnFocus)
         --"                 \ }
 
         --"                 let s:fsi_buffer = term_start(fsi_command, options)
-        fsiBuffer = vim.fn("term_start(" .. M.MergedConfig.IonideNvimSettings.FsiCommand .. ", " .. vim.inspect(options) .. ")")
+        fsiBuffer =
+          vim.fn("term_start(" .. M.MergedConfig.IonideNvimSettings.FsiCommand .. ", " .. vim.inspect(options) .. ")")
         --"                 if s:fsi_buffer != 0
         if fsiBuffer ~= 0 then
           --"                     if exists('*term_setkill') | call term_setkill(s:fsi_buffer, "term") | endif
