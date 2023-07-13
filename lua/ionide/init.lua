@@ -623,13 +623,13 @@ M["fsharp/documentationSymbol"] = function(error, result, context, config)
   end
 end
 
-  vim.notify("handling notifyWorkspace")
 M["fsharp/notifyWorkspace"] = function(payload)
+  M.notify("handling notifyWorkspace")
   local content = vim.json.decode(payload.content)
-  -- vim.notify("notifyWorkspace Decoded content is : \n"..vim.inspect(content))
+  -- M.notify("notifyWorkspace Decoded content is : \n"..vim.inspect(content))
   if content then
     if content.Kind == "projectLoading" then
-      vim.notify("[Ionide] Loading " .. content.Data.Project)
+      M.notify("[Ionide] Loading " .. content.Data.Project)
       -- print("[Ionide] now calling AddOrUpdateThenSort on table  " .. vim.inspect(Workspace))
       --
       -- table.insert( M.Projects, content.Data.Project)
@@ -660,12 +660,12 @@ M["fsharp/notifyWorkspace"] = function(payload)
       end, vim.tbl_keys(M.Projects))
       if projectCount > 0 then
         if projectCount > 1 then
-          vim.notify("[Ionide] Loaded " .. projectCount .. " projects:\n" .. vim.inspect(projNames))
+          M.notify("[Ionide] Loaded " .. projectCount .. " projects:\n" .. vim.inspect(projNames))
         else
-          vim.notify("[Ionide] Loaded project:\n" .. vim.fs.normalize(vim.inspect(projNames[1])))
+          M.notify("[Ionide] Loaded project:\n" .. vim.fs.normalize(vim.inspect(projNames[1])))
         end
       else
-        vim.notify("[Ionide] Workspace is empty! Something went wrong. ")
+        M.notify("[Ionide] Workspace is empty! Something went wrong. ")
       end
       local deleteMeFiles = vim.fs.find(function(name, _)
         return name:match(".*TempFileForProjectInitDeleteMe.fs$")
@@ -679,31 +679,34 @@ M["fsharp/notifyWorkspace"] = function(payload)
   end
 end
 
-M["fsharp/workspaceLoad"]= function (result)
-    vim.notify(
-      "handling workspaceLoad response\n" .. "result is: \n"..
-       vim.inspect(result or "result could not be read correctly")
-    )
+M["fsharp/workspaceLoad"] = function(result)
+  M.notify(
+    "handling workspaceLoad response\n"
+      .. "result is: \n"
+      .. vim.inspect(result or "result could not be read correctly")
+  )
+  if result then
     local resultContent = result.content
     if resultContent ~= nil then
-      local content =vim.json.decode(resultContent)
-      vim.notify("json decode of payload content : ".. vim.inspect(content or "not decoded"))
-    if content then
-    -- vim.notify( "Ionide Workspace Load Status: "
-    --  ..  vim.inspect(content.Status or "result.content could not be read correctly")
-    -- )
+      local content = vim.json.decode(resultContent)
+      M.notify("json decode of payload content : " .. vim.inspect(content or "not decoded"))
+      if content then
+        -- M.notify( "Ionide Workspace Load Status: "
+        --  ..  vim.inspect(content.Status or "result.content could not be read correctly")
+        -- )
+      end
     end
   end
-
 end
 
 M["fsharp/workspacePeek"] = function(result)
+  if result then
     local resultContent = result.content
-    -- vim.notify(
-    --   -- "handling workspacePeek response\n"
-    --   -- .. "result is: \n"
-    --    vim.inspect(resultContent or "result.content could not be read correctly")
-    -- )
+    M.notify(
+      "handling workspacePeek response\n"
+        .. "result is: \n"
+        .. vim.inspect(resultContent or "result.content could not be read correctly")
+    )
     ---@type Solution []
     local solutions = {}
     local directory
@@ -711,16 +714,12 @@ M["fsharp/workspacePeek"] = function(result)
       local content =vim.json.decode(resultContent)
       -- vim.notify("json decode of payload content : ".. vim.inspect(content or "not decoded"))
     if content then
-      -- vim.notify("json decode of payload content successful")
     local kind = content.Kind
       if kind and kind == "workspacePeek" then
-        -- vim.notify("workspace peek is content kind")
         local data = content.Data
         if data ~= nil then
-          -- vim.notify("Data not null")
           local found = data.Found
           if found ~= nil then
-            -- vim.notify("data.Found not null")
 
             ---@type Project[]
             local projects = {}
@@ -732,8 +731,11 @@ M["fsharp/workspacePeek"] = function(result)
               elseif item.Kind.Kind == "msbuildformat" then
                 table.insert(projects,item)
               else-- else left in case I want some other type to be dealt with..
-                vim.notify("Unaccounted for item type in workspacePeek handler, "..item.Type)
-
+      -- M.notify("json decode of payload content : ".. vim.inspect(content or "not decoded"))
+        -- M.notify("json decode of payload content successful")
+          -- M.notify("workspace peek is content kind")
+            -- M.notify("Data not null")
+              -- M.notify("data.Found not null")
               end
             end
             local cwd =vim.fs.normalize( vim.fn.getcwd())
@@ -768,12 +770,27 @@ M["fsharp/workspacePeek"] = function(result)
                   end }, function(_, index) finalChoice =  solutions[index] end)
               else
                    finalChoice =  solutions[1]
+                M.notify(
+                  "WorkspacePeek directory \n" .. directory .. "Does not equal current working directory\n" .. cwd
+                )
+                -- M.notify(vim.inspect(#solutions) .. " solutions found in workspace")
+                  -- M.notify("More than one solution found in workspace!")
+                M.notify("Loading solution : " .. vim.fn.fnamemodify(vim.fs.normalize(finalPath), ":p:."))
+                M.notify("Going to ask FsAutoComplete to load these project paths.. " .. vim.inspect(pathsToLoad))
+                    -- M.notify("fsharp/project load request has a payload of :  " .. vim.inspect( payload or "No Result from Server"))
+              -- if solutionToLoad ~= nil then
+              --   M.notify("solutionToLoad is set to " ..
+              --     solutionToLoad .. " \nthough currently that doesn't do anything..")
+              -- else
+              --   M.notify("for some reason solution to load was null. .... why?")
+              -- end
+              else
+                M.notify("Only one solution in workspace path, projects should be loaded already. ")
               end
 
               finalChoice = finalChoice or {Data={Path = vim.fn.getcwd(),Items ={Name=
                 vim.fs.find(function(name, _) return name:match('.*%.[cf]sproj$') end ,{type= "file" })}}}
               local finalPath = vim.fs.normalize(finalChoice.Data.Path)
-                   vim.notify("Loading solution : ".. vim.fn.fnamemodify(vim.fs.normalize(finalPath),":p:."))
 
                   ---@type string[]
                   local pathsToLoad = {}
@@ -784,7 +801,6 @@ M["fsharp/workspacePeek"] = function(result)
                       end
                     end
 
-              vim.notify("Going to ask FsAutoComplete to load these project paths.. " ..  vim.inspect(pathsToLoad))
                    local  projectParams ={}
                     for _, path in ipairs(pathsToLoad) do
                       table.insert(projectParams,M.CreateFSharpProjectParams(path))
@@ -793,46 +809,35 @@ M["fsharp/workspacePeek"] = function(result)
                     for _, proj in ipairs(projectParams) do
                       vim.lsp.buf_request(0,"fsharp/project",{proj},
                         function (payload)
-                          -- vim.notify("fsharp/project load request has a payload of :  " .. vim.inspect( payload or "No Result from Server"))
                     end)
 
                     end
 
-            -- if solutionToLoad ~= nil then
-            --   vim.notify("solutionToLoad is set to " ..
-            --     solutionToLoad .. " \nthough currently that doesn't do anything..")
-            -- else
-            --   vim.notify("for some reason solution to load was null. .... why?")
-            -- end
             else
-
-
+              -- M.notify("for some reason data.Found was null. .... why?")
             end
           else
-            -- vim.notify("for some reason data.Found was null. .... why?")
+            -- M.notify("for some reason content.Data was null. .... why?")
           end
         else
-          -- vim.notify("for some reason content.Data was null. .... why?")
+          -- M.notify("content.Type wasn't workspace peek.. that should be impossible.. .... why?")
         end
       else
-        -- vim.notify("content.Type wasn't workspace peek.. that should be impossible.. .... why?")
+        -- M.notify("no content from Json decode? but it isn't null.... why?")
       end
     else
-      -- vim.notify("no content from Json decode? but it isn't null.... why?")
+      -- M.notify("no content from Json decode? but it isn't null.... why?")
     end
-  else
-      -- vim.notify("no content from Json decode? but it isn't null.... why?")
+    -- else
+    --   M.notify("no result from workspace peek! WHY??!")
   end
-  -- else
-  --   vim.notify("no result from workspace peek! WHY??!")
-  -- end
 end
 
-M["fsharp/compilerLocation"]= function (error, result , context , config)
-  vim.notify(
+M["fsharp/compilerLocation"] = function(error, result, context, config)
+  M.notify(
     "handling compilerLocation response\n"
-    .. "result is: \n"
-        .. vim.inspect({ error or "", result or "", context or "", config or "" })
+      .. "result is: \n"
+      .. vim.inspect({ error or "", result or "", context or "", config or "" })
   )
 end
 
@@ -1108,7 +1113,6 @@ function M.Call(method, params, handler)
   return lsp.buf_request(0, method, params, handler)
 end
 
-
 function M.CallLspNotify(method, params)
   lsp.buf_notify(0, method, params)
 end
@@ -1228,7 +1232,6 @@ function M.CallFSharpWorkspacePeek(directoryPath, depth, excludedDirs, handler)
   return M.Call("fsharp/workspacePeek", M.CreateFSharpWorkspacePeekRequest(directoryPath, depth, excludedDirs), handler)
 end
 
-
 ---Call to "fsharp/workspaceLoad"
 ---@param projectFiles string[]  a string list of project files.
 ---@return nil
@@ -1292,24 +1295,24 @@ end
 
 function M.ShowLoadedProjects()
   for proj, projInfo in pairs(M.Projects) do
-    vim.notify("- " .. vim.fs.normalize(proj))
+    M.notify("- " .. vim.fs.normalize(proj))
   end
 end
 
 function M.ReloadProjects()
-  print("[Ionide] Reloading Projects")
-  local foldersCount = #(M.projectFolders)
+  M.notify("[Ionide] Reloading Projects")
+  local foldersCount = #M.projectFolders
   if foldersCount > 0 then
     M.CallFSharpWorkspaceLoad(M.projectFolders)
   else
-    print("[Ionide] Workspace is empty")
+    M.notify("[Ionide] Workspace is empty")
   end
 end
 
 function M.OnFSProjSave()
   if vim.bo.ft == "fsharp_project" and M.MergedConfig.IonideNvimSettings.AutomaticReloadWorkspace and M.MergedConfig.IonideNvimSettings.AutomaticReloadWorkspace  == true then
-    print("[Ionide] fsharp project saved, reloading...")
     local parentDir=  vim.fs.normalize(vim.fs.dirname(vim.api.nvim_buf_get_name(vim.api.nvim_get_current_buf())))
+    M.notify("[Ionide] fsharp project saved, reloading...")
 
     if not vim.tbl_contains(M.projectFolders, parentDir) then
       table.insert( M.projectFolders,parentDir)
@@ -1324,19 +1327,19 @@ function M.ShowIonideClientWorkspaceFolders()
   local client = M.getCurrentBufferIonideClient()
   if client then
     local folders = client.workspace_folders or {}
-    print("[Ionide] WorkspaceFolders: \n" .. vim.inspect(folders))
+    M.notify("[Ionide] WorkspaceFolders: \n" .. vim.inspect(folders))
   else
-    print("[Ionide] No ionide client found attached to the current buffer, no workspace folders to show! \n")
+    M.notify("[Ionide] No ionide client found, no workspace folders to show! \n")
   end
 end
 
 function M.ShowNvimSettings()
-  print("[Ionide] NvimSettings: \n" .. vim.inspect(M.MergedConfig.IonideNvimSettings))
+  M.notify("[Ionide] NvimSettings: \n" .. vim.inspect(M.MergedConfig.IonideNvimSettings))
 end
 
 function M.ShowConfigs()
-  -- print("[Ionide] Last passed in Config: \n" .. vim.inspect(M.PassedInConfig))
-  print("[Ionide] Last final merged Config: \n" .. vim.inspect(M.MergedConfig))
+  -- M.notify("[Ionide] Last passed in Config: \n" .. vim.inspect(M.PassedInConfig))
+  M.notify("[Ionide] Last final merged Config: \n" .. vim.inspect(M.MergedConfig))
   M.ShowIonideClientWorkspaceFolders()
 end
 
@@ -1361,11 +1364,12 @@ function M.RegisterAutocmds()
     callback = function(args)
       -- args.data.client_id
       vim.defer_fn(function()
-        vim.notify("clearing lsp codelens and refreshing")
+        M.notify("clearing lsp codelens and refreshing")
         vim.lsp.codelens.clear()
         vim.lsp.codelens.refresh()
       end, 7000)
       -- vim.lsp.codelens.clear()
+
       -- vim.lsp.codelens.refresh()
     end,
   })
@@ -1377,7 +1381,7 @@ function M.RegisterAutocmds()
     callback = function(arg)
       vim.defer_fn(function()
         vim.lsp.codelens.refresh()
-        -- vim.notify("lsp codelens refreshing")
+        -- M.notify("lsp codelens refreshing")
       end, 2000)
     end,
   })
@@ -1485,7 +1489,6 @@ function M.Initialize()
     "Ionide calling custom WorkspacePeekRequest in relation to file .. " .. vim.fn.fnamemodify(thisBufname, ":p:.")
   )
   ---@type lsp.Client
-  vim.notify("Ionide Initialized")
   local thisIonide = vim.lsp.get_active_clients({ bufnr = thisBufnr, name = "ionide" })[1]
     or { workspace_folders = { { vim.fn.getcwd() } } }
 
@@ -1495,6 +1498,7 @@ function M.Initialize()
     M.MergedConfig.settings.FSharp.workspaceModePeekDeepLevel,
     M.MergedConfig.settings.FSharp.excludeProjectDirectories
   )
+  M.notify("Ionide Initialized")
 end
 
 -- M.Manager = nil
@@ -1506,11 +1510,11 @@ function M.AutoStartIfNeeded(config)
 end
 
 function M.DelegateToLspConfig(config)
-  -- vim.notify("calling DelegateToLspConfig")
+  -- M.notify("calling DelegateToLspConfig")
   local lspconfig = require("lspconfig")
   local configs = require("lspconfig.configs")
   if not configs["ionide"] then
-  -- vim.notify("creating entry in lspconfig configs for ionide ")
+    -- M.notify("creating entry in lspconfig configs for ionide ")
     configs["ionide"] = {
       default_config = config,
       docs = {
@@ -1521,7 +1525,7 @@ function M.DelegateToLspConfig(config)
 
   lspconfig.ionide.setup(config)
 
-  -- vim.notify("calling lspconfig setup for ionide ")
+  -- M.notify("calling lspconfig setup for ionide ")
 end
 
 --- ftplugin section ---
@@ -1600,7 +1604,6 @@ autocmd("BufWritePost", {
       local projectRoot = vim.fs.normalize( M.GitFirstRootDir(bufname))
 
 
-      -- vim.notify("Searching for Ionide client already started for root path of " .. projectRoot )
       local parentDir =vim.fs.normalize( vim.fs.dirname(bufname))
       local closestFsFile =  vim.fs.find(function(name, path)
         return name:match('.*%.fs$') end,
@@ -1611,7 +1614,6 @@ autocmd("BufWritePost", {
         return newFile
       end)()
 
-      -- vim.notify("closest fs file is  " .. closestFsFile )
       ---@type integer
       local closestFileBufNumber= vim.fn.bufadd(closestFsFile)
       local ionideClientsList=vim.lsp.get_active_clients({name = "ionide"})
@@ -1619,6 +1621,8 @@ autocmd("BufWritePost", {
       if ionideClientsList then
 
         for _,client in ipairs(ionideClientsList) do
+    -- M.notify("Searching for Ionide client already started for root path of " .. projectRoot )
+    -- M.notify("closest fs file is  " .. closestFsFile )
         local root = client.config.root_dir or ""
         if vim.fs.normalize(root) == projectRoot then
           -- M.notify("Ionide already started for root path of " .. projectRoot .. " \nClient Id: " .. vim.inspect(client.id))
@@ -1721,7 +1725,7 @@ local function create_manager(config)
           settings = { [vim.type_idx] = vim.types.dictionary }
         end
         local settingsInspected = vim.inspect(settings)
-        vim.notify("Settings being sent to LSP server are: " .. settingsInspected)
+        M.notify("Settings being sent to LSP server are: " .. settingsInspected)
         return client.notify("workspace/didChangeConfiguration", {
           settings = settings,
         })
@@ -1729,7 +1733,7 @@ local function create_manager(config)
 
       if not vim.tbl_isempty(new_config.settings) then
         local settingsInspected = vim.inspect(new_config.settings)
-        vim.notify("Settings being sent to LSP server are: " .. settingsInspected)
+        M.notify("Settings being sent to LSP server are: " .. settingsInspected)
         client.workspace_did_change_configuration(new_config.settings)
       end
     end)
@@ -1826,16 +1830,15 @@ function M.InitializeDefaultFsiKeymapSettings()
       end
     end
   else
-    vim.notify("I'm sorry I don't support regular vim, try ionide/ionide-vim instead")
+    M.notify("I'm sorry I don't support regular vim, try ionide/ionide-vim instead")
   end
 end
 
 function M.setup(config)
-
   M.PassedInConfig = config or {}
-  -- vim.notify("entered setup for ionide: passed in config is  " .. vim.inspect(M.PassedInConfig))
-  M.MergedConfig = vim.tbl_deep_extend("force",M.DefaultLspConfig, M.PassedInConfig)
-  -- vim.notify("entered setup for ionide: passed in config merged with defaults gives us " .. vim.inspect(M.MergedConfig))
+  -- M.notify("entered setup for ionide: passed in config is  " .. vim.inspect(M.PassedInConfig))
+  M.MergedConfig = vim.tbl_deep_extend("force", M.DefaultLspConfig, M.PassedInConfig)
+  -- M.notify("entered setup for ionide: passed in config merged with defaults gives us " .. vim.inspect(M.MergedConfig))
   M.UpdateServerConfig(M.MergedConfig.settings.FSharp)
   M.InitializeDefaultFsiKeymapSettings()
 
@@ -1847,7 +1850,6 @@ end
 
 function M.status()
   if lspconfig_is_present then
-
     -- print("* LSP server: handled by nvim-lspconfig")
 
     -- local ionide = lsp.buf.inlay_hint(0, true)
@@ -1913,11 +1915,11 @@ local function getFsiCommand()
 end
 
 function M.OpenFsi(returnFocus)
-  -- vim.notify("openfsi return focus is " .. tostring(returnFocus))
+  -- M.notify("openfsi return focus is " .. tostring(returnFocus))
   local isNeovim = vim.fn.has("nvim")
   --"     if bufwinid(s:fsi_buffer) <= 0
   if vim.fn.bufwinid(fsiBuffer) <= 0 then
-    -- vim.notify("fsiBuffer id is " .. tostring(fsiBuffer))
+    -- M.notify("fsiBuffer id is " .. tostring(fsiBuffer))
     --"         let fsi_command = s:get_fsi_command()
     local cmd = getFsiCommand()
     --"         if exists('*termopen') || exists('*term_start')
@@ -1964,7 +1966,7 @@ function M.OpenFsi(returnFocus)
           --"                     close
           vim.cmd.close()
           --"                     echom "[FSAC] Failed to open FSI."
-          vim.notify("[Ionide] failed to open FSI")
+          M.notify("[Ionide] failed to open FSI")
           --"                     return -1
           return -1
           --"                 endif
@@ -2003,7 +2005,7 @@ function M.OpenFsi(returnFocus)
           vim.cmd.close()
           --"                     echom "[FSAC] Failed to open FSI."
 
-          vim.notify("[Ionide] failed to open FSI")
+          M.notify("[Ionide] failed to open FSI")
           --"                     return -1
           return -1
           --"                 endif
@@ -2025,7 +2027,7 @@ function M.OpenFsi(returnFocus)
       --"         else
     else
       --"             echom "[FSAC] Your (neo)vim does not support terminal".
-      vim.notify("[Ionide] Your neovim doesn't support terminal.")
+      M.notify("[Ionide] Your neovim doesn't support terminal.")
       --"             return 0
       return 0
       --"         endif
@@ -2037,15 +2039,15 @@ function M.OpenFsi(returnFocus)
 end
 
 -- function M.OpenFsi(returnFocus)
---   vim.notify("OpenFsi got return focus as " .. vim.inspect(returnFocus))
+--   M.notify("OpenFsi got return focus as " .. vim.inspect(returnFocus))
 --   local isNeovim = vim.fn.has('nvim')
 --   if not isNeovim then
---     vim.notify("[Ionide] This version of ionide is for Neovim only. please try www.github.com/ionide/ionide-vim")
+--     M.notify("[Ionide] This version of ionide is for Neovim only. please try www.github.com/ionide/ionide-vim")
 --   end
 --     if vim.fn.exists('*termopen') == true or vim.fn.exists('*term_start') then
 --       --"             let current_win = win_getid()
 --       local currentWin = vim.fn.win_getid()
---     vim.notify("OpenFsi currentWin = " .. vim.inspect(currentWin))
+--     M.notify("OpenFsi currentWin = " .. vim.inspect(currentWin))
 --       --"             execute g:fsharp#fsi_window_command
 --       vim.fn.execute(M.FsiWindowCommand or 'botright 10new')
 --       -- "             if s:fsi_width  > 0 | execute 'vertical resize' s:fsi_width | endif
@@ -2065,22 +2067,22 @@ end
 --         --"             " open FSI: Neovim
 --         --"             elseif has('nvim')
 --   local bufWinid = vim.fn.bufwinid(fsiBuffer) or -1
---   vim.notify("OpenFsi bufWinid = " .. vim.inspect(bufWinid))
+--   M.notify("OpenFsi bufWinid = " .. vim.inspect(bufWinid))
 --   if bufWinid <= 0 then
 --     local cmd = getFsiCommand()
 --     if isNeovim then
 --       fsiJob = vim.fn.termopen(cmd)
---       vim.notify("OpenFsi fsiJob is now  = " .. vim.inspect(fsiJob))
+--       M.notify("OpenFsi fsiJob is now  = " .. vim.inspect(fsiJob))
 --       if fsiJob > 0 then
 --         fsiBuffer = vim.fn.bufnr(vim.api.nvim_get_current_buf())
 --       else
 --         vim.cmd.close()
---         vim.notify("[Ionide] failed to open FSI")
+--         M.notify("[Ionide] failed to open FSI")
 --         return -1
 --       end
 --     end
 --   end
---   vim.notify("[Ionide] This version of ionide is for Neovim only. please try www.github.com/ionide/ionide-vim")
+--   M.notify("[Ionide] This version of ionide is for Neovim only. please try www.github.com/ionide/ionide-vim")
 --   if returnFocus then winGoToIdSafe(currentWin) end
 --   return fsiBuffer
 -- end
@@ -2117,7 +2119,7 @@ end
 function M.GetVisualSelection(keepSelectionIfNotInBlockMode, advanceCursorOneLine, debugNotify)
   local line_start, column_start
   local line_end, column_end
-  -- if debugNotify is true, use vim.notify to show debug info.
+  -- if debugNotify is true, use M.notify to show debug info.
   debugNotify = debugNotify or false
   -- keep selection defaults to false, but if true the selection will
   -- be reinstated after it's cleared to set '> and '<
@@ -2147,30 +2149,30 @@ function M.GetVisualSelection(keepSelectionIfNotInBlockMode, advanceCursorOneLin
   if column_start > column_end then
     column_start, column_end = column_end, column_start
     if debugNotify == true then
-      vim.notify(
+      M.notify(
         "switching column start and end, \nWas "
-        .. column_end
-        .. ","
-        .. column_start
-        .. "\nNow "
-        .. column_start
-        .. ","
-        .. column_end
+          .. column_end
+          .. ","
+          .. column_start
+          .. "\nNow "
+          .. column_start
+          .. ","
+          .. column_end
       )
     end
   end
   if line_start > line_end then
     line_start, line_end = line_end, line_start
     if debugNotify == true then
-      vim.notify(
+      M.notify(
         "switching line start and end, \nWas "
-        .. line_end
-        .. ","
-        .. line_start
-        .. "\nNow "
-        .. line_start
-        .. ","
-        .. line_end
+          .. line_end
+          .. ","
+          .. line_start
+          .. "\nNow "
+          .. line_start
+          .. ","
+          .. line_end
       )
     end
   end
@@ -2178,17 +2180,17 @@ function M.GetVisualSelection(keepSelectionIfNotInBlockMode, advanceCursorOneLin
     column_end = column_end - 1 -- Needed to remove the last character to make it match the visual selection
   end
   if debugNotify == true then
-    vim.notify(
+    M.notify(
       "vim.fn.visualmode(): "
-      .. vim.fn.visualmode()
-      .. "\nsel start "
-      .. vim.inspect(line_start)
-      .. " "
-      .. vim.inspect(column_start)
-      .. "\nSel end "
-      .. vim.inspect(line_end)
-      .. " "
-      .. vim.inspect(column_end)
+        .. vim.fn.visualmode()
+        .. "\nsel start "
+        .. vim.inspect(line_start)
+        .. " "
+        .. vim.inspect(column_start)
+        .. "\nSel end "
+        .. vim.inspect(line_end)
+        .. " "
+        .. vim.inspect(column_end)
     )
   end
   local n_lines = math.abs(line_end - line_start) + 1
@@ -2211,14 +2213,12 @@ function M.GetVisualSelection(keepSelectionIfNotInBlockMode, advanceCursorOneLin
     -- if advanceCursorOneLine == true, then i do want the cursor to advance once.
     if advanceCursorOneLine == true then
       if debugNotify == true then
-        vim.notify(
-          "advancing cursor one line past the end of the selection to line " .. vim.inspect(line_end + 1)
-        )
+        M.notify("advancing cursor one line past the end of the selection to line " .. vim.inspect(line_end + 1))
       end
 
       local lastline = vim.fn.line("w$")
       if line_end > lastline then
-          vim.api.nvim_win_set_cursor(0, { line_end + 1, 0 })
+        vim.api.nvim_win_set_cursor(0, { line_end + 1, 0 })
       end
     end
 
@@ -2227,7 +2227,7 @@ function M.GetVisualSelection(keepSelectionIfNotInBlockMode, advanceCursorOneLin
     end
   end
   if debugNotify == true then
-    vim.notify(table.concat(lines, "\n"))
+    M.notify(table.concat(lines, "\n"))
   end
   return lines -- use this return if you want an array of text lines
   -- return table.concat(lines, "\n") -- use this return instead if you need a text block
@@ -2275,7 +2275,6 @@ function M.ResetFsi()
   M.OpenFsi(false)
 end
 
-
 --" function! fsharp#sendFsi(text)
 --"     if fsharp#openFsi(!g:fsharp#fsi_focus_on_send) > 0
 --"         " Neovim
@@ -2291,12 +2290,12 @@ end
 -- "
 
 function M.SendFsi(text)
-  -- vim.notify("[Ionide] Text being sent to FSI:\n" .. text)
+  -- M.notify("[Ionide] Text being sent to FSI:\n" .. text)
   local openResult = M.OpenFsi(not M.MergedConfig.IonideNvimSettings.FsiFocusOnSend or false)
-  -- vim.notify("[Ionide] result of openfsi function is " .. vim.inspect(openResult))
+  -- M.notify("[Ionide] result of openfsi function is " .. vim.inspect(openResult))
   if not openResult then
     openResult = 1
-    -- vim.notify("[Ionide] changing result to 1 and hoping for the best. lol. " .. vim.inspect(openResult))
+    -- M.notify("[Ionide] changing result to 1 and hoping for the best. lol. " .. vim.inspect(openResult))
   end
 
   if openResult > 0 then
@@ -2321,7 +2320,7 @@ function M.SendSelectionToFsi()
   -- vim.cmd(':normal' .. ' j')
   -- vim.cmd('normal' .. vim.fn.len(lines) .. 'j')
   local text = vim.fn.join(lines, "\n")
-  -- vim.notify("fsi send selection " .. text)
+  -- M.notify("fsi send selection " .. text)
   M.SendFsi(text)
 
   -- local line_end, _ = unpack(vim.fn.getpos("'>"), 2)
@@ -2341,13 +2340,13 @@ function M.SendLineToFsi()
   if line > lastline then
     vim.api.nvim_win_set_cursor(0, { line + 1, 0 })
   end
-  -- vim.notify("fsi send line " .. text)
+  -- M.notify("fsi send line " .. text)
   M.SendFsi(text)
   -- vim.cmd 'normal j'
 end
 
 function M.SendAllToFsi()
-  -- vim.notify("fsi send all ")
+  -- M.notify("fsi send all ")
   local text = M.GetCompleteBuffer()
   return M.SendFsi(text)
 end
@@ -2435,16 +2434,18 @@ uc("IonideLoadProjects", function(opts)
     end
     M.LoadProjects(projects)
   else
-    print(vim.inspect(opts))
+    M.notify(opts)
   end
 end, {})
 
 uc("IonideShowLoadedProjects", M.ShowLoadedProjects, {})
 uc("IonideShowNvimSettings", M.ShowNvimSettings, {})
-uc("IonideShowAllLoadedProjectInfo", function() vim.notify(vim.inspect(M.Projects)) end, {desc ="Show all currently loaded Project Info, as far as Neovim knows or cares"})
-uc("IonideShowAllLoadedProjectFolders", function() vim.notify(vim.inspect(table.concat(M.projectFolders,"\n"))) end, {desc ="Show all currently loaded project folders, as far as Neovim knows or cares"})
-uc("IonideWorkspacePeek", function() M.CallFSharpWorkspacePeek(M.getCurrentBufferIonideClientConfigRootDirOrCwd(), M.MergedConfig.settings.FSharp.workspaceModePeekDeepLevel or 3, M.MergedConfig.settings.FSharp.excludeProjectDirectories or {}) end,
-  { desc = "Request a workspace peek from Lsp" })
+uc("IonideShowAllLoadedProjectInfo", function()
+  M.notify(M.Projects)
+end, { desc = "Show all currently loaded Project Info, as far as Neovim knows or cares" })
+uc("IonideShowAllLoadedProjectFolders", function()
+  M.notify(table.concat(M.projectFolders, "\n"))
+end, { desc = "Show all currently loaded project folders, as far as Neovim knows or cares" })
 uc("IonideWorkspacePeek", function()
   M.CallFSharpWorkspacePeek(
     M.getIonideClientConfigRootDirOrCwd(),
