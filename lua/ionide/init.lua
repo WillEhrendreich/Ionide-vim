@@ -2455,120 +2455,119 @@ end, { desc = "Request a workspace peek from Lsp" })
 
 return M
 
-  --
-  -- (function()
-  --   local function determineFsiPath(useNetCore, ifNetFXUseAnyCpu)
-  --     local pf, exe, arg, fsiExe
-  --     if useNetCore == true then
-  --       pf = os.getenv("ProgramW6432")
-  --       if pf == nil or pf == "" then
-  --         pf = os.getenv("ProgramFiles")
-  --       end
-  --       exe = pf .. "/dotnet/dotnet.exe"
-  --       arg = "fsi"
-  --       if not os.rename(exe, exe) then
-  --         vim.notify("Could Not Find fsi.exe: " .. exe)
-  --       end
-  --       return exe .. " " .. arg
-  --     else
-  --       local function fsiExeName()
-  --         local any = ifNetFXUseAnyCpu or true
-  --         if any then
-  --           return "fsiAnyCpu.exe"
-  --           -- elseif runtime.architecture == "Arm64" then
-  --           --   return "fsiArm64.exe"
-  --         else
-  --           return "fsi.exe"
-  --         end
-  --       end
-  --
-  --       -- - path (string): Path to begin searching from. If
-  --       --        omitted, the |current-directory| is used.
-  --       -- - upward (boolean, default false): If true, search
-  --       --          upward through parent directories. Otherwise,
-  --       --          search through child directories
-  --       --          (recursively).
-  --       -- - stop (string): Stop searching when this directory is
-  --       --        reached. The directory itself is not searched.
-  --       -- - type (string): Find only files ("file") or
-  --       --        directories ("directory"). If omitted, both
-  --       --        files and directories that match {names} are
-  --       --        included.
-  --       -- - limit (number, default 1): Stop the search after
-  --       --         finding this many matches. Use `math.huge` to
-  --       --         place no limit on the number of matches.
-  --
-  --       local function determineFsiRelativePath(name)
-  --         local find = vim.fs.find({ name },
-  --                 { path = vim.fn.getcwd(), upward = false, type = "file", limit = 1 })
-  --         if vim.tbl_isempty(find) or find[1] == nil then
-  --           return ""
-  --         else
-  --           return find[1]
-  --         end
-  --       end
-  --
-  --       local name = fsiExeName()
-  --       local path = determineFsiRelativePath(name)
-  --       if not path == "" then
-  --         fsiExe = path
-  --       else
-  --         local fsbin = os.getenv("FSharpBinFolder")
-  --         if fsbin == nil or fsbin == "" then
-  --           local lastDitchEffortPath =
-  --               vim.fs.find({ name },
-  --                   {
-  --                       path = "C:/Program Files (x86)/Microsoft Visual Studio/",
-  --                       upward = false,
-  --                       type = "file",
-  --                       limit = 1
-  --                   })
-  --           if not lastDitchEffortPath then
-  --             fsiExe = "Could not find FSI"
-  --           else
-  --             fsiExe = lastDitchEffortPath
-  --           end
-  --         else
-  --           fsiExe = fsbin .. "/Tools/" .. name
-  --         end
-  --       end
-  --       return fsiExe
-  --     end
-  --   end
-  --
-  --   local function shouldUseAnyCpu()
-  --     local uname = vim.api.nvim_call_function("system", { "uname -m" })
-  --     local architecture = uname:gsub("\n", "")
-  --     if architecture == "" then
-  --       local output = vim.api.nvim_call_function("system", { "cmd /c echo %PROCESSOR_ARCHITECTURE%" })
-  --       architecture = output:gsub("\n", "")
-  --     end
-  --     if string.match(architecture, "64") then
-  --       return true
-  --     else
-  --       return false
-  --     end
-  --   end
-  --
-  --   local useSdkScripts = false
-  --   if M.DefaultServerSettings then
-  --     local ds = M.DefaultServerSettings
-  --     if ds.useSdkScripts then
-  --       useSdkScripts = ds.useSdkScripts
-  --     end
-  --   end
-  --   if not M.PassedInConfig then
-  --     M["PassedInConfig"] = {}
-  --   end
-  --   if M.PassedInConfig.settings then
-  --     if M.PassedInConfig.settings.FSharp then
-  --       if M.PassedInConfig.settings.FSharp.useSdkScripts then
-  --         useSdkScripts = M.PassedInConfig.settings.FSharp.useSdkScripts
-  --       end
-  --     end
-  --   end
-  --
-  --   local useAnyCpu = shouldUseAnyCpu()
-  --   return determineFsiPath(useSdkScripts, useAnyCpu)
-  -- end)(),
-
+--
+-- (function()
+--   local function determineFsiPath(useNetCore, ifNetFXUseAnyCpu)
+--     local pf, exe, arg, fsiExe
+--     if useNetCore == true then
+--       pf = os.getenv("ProgramW6432")
+--       if pf == nil or pf == "" then
+--         pf = os.getenv("ProgramFiles")
+--       end
+--       exe = pf .. "/dotnet/dotnet.exe"
+--       arg = "fsi"
+--       if not os.rename(exe, exe) then
+--         M.notify("Could Not Find fsi.exe: " .. exe)
+--       end
+--       return exe .. " " .. arg
+--     else
+--       local function fsiExeName()
+--         local any = ifNetFXUseAnyCpu or true
+--         if any then
+--           return "fsiAnyCpu.exe"
+--           -- elseif runtime.architecture == "Arm64" then
+--           --   return "fsiArm64.exe"
+--         else
+--           return "fsi.exe"
+--         end
+--       end
+--
+--       -- - path (string): Path to begin searching from. If
+--       --        omitted, the |current-directory| is used.
+--       -- - upward (boolean, default false): If true, search
+--       --          upward through parent directories. Otherwise,
+--       --          search through child directories
+--       --          (recursively).
+--       -- - stop (string): Stop searching when this directory is
+--       --        reached. The directory itself is not searched.
+--       -- - type (string): Find only files ("file") or
+--       --        directories ("directory"). If omitted, both
+--       --        files and directories that match {names} are
+--       --        included.
+--       -- - limit (number, default 1): Stop the search after
+--       --         finding this many matches. Use `math.huge` to
+--       --         place no limit on the number of matches.
+--
+--       local function determineFsiRelativePath(name)
+--         local find = vim.fs.find({ name },
+--                 { path = vim.fn.getcwd(), upward = false, type = "file", limit = 1 })
+--         if vim.tbl_isempty(find) or find[1] == nil then
+--           return ""
+--         else
+--           return find[1]
+--         end
+--       end
+--
+--       local name = fsiExeName()
+--       local path = determineFsiRelativePath(name)
+--       if not path == "" then
+--         fsiExe = path
+--       else
+--         local fsbin = os.getenv("FSharpBinFolder")
+--         if fsbin == nil or fsbin == "" then
+--           local lastDitchEffortPath =
+--               vim.fs.find({ name },
+--                   {
+--                       path = "C:/Program Files (x86)/Microsoft Visual Studio/",
+--                       upward = false,
+--                       type = "file",
+--                       limit = 1
+--                   })
+--           if not lastDitchEffortPath then
+--             fsiExe = "Could not find FSI"
+--           else
+--             fsiExe = lastDitchEffortPath
+--           end
+--         else
+--           fsiExe = fsbin .. "/Tools/" .. name
+--         end
+--       end
+--       return fsiExe
+--     end
+--   end
+--
+--   local function shouldUseAnyCpu()
+--     local uname = vim.api.nvim_call_function("system", { "uname -m" })
+--     local architecture = uname:gsub("\n", "")
+--     if architecture == "" then
+--       local output = vim.api.nvim_call_function("system", { "cmd /c echo %PROCESSOR_ARCHITECTURE%" })
+--       architecture = output:gsub("\n", "")
+--     end
+--     if string.match(architecture, "64") then
+--       return true
+--     else
+--       return false
+--     end
+--   end
+--
+--   local useSdkScripts = false
+--   if M.DefaultServerSettings then
+--     local ds = M.DefaultServerSettings
+--     if ds.useSdkScripts then
+--       useSdkScripts = ds.useSdkScripts
+--     end
+--   end
+--   if not M.PassedInConfig then
+--     M["PassedInConfig"] = {}
+--   end
+--   if M.PassedInConfig.settings then
+--     if M.PassedInConfig.settings.FSharp then
+--       if M.PassedInConfig.settings.FSharp.useSdkScripts then
+--         useSdkScripts = M.PassedInConfig.settings.FSharp.useSdkScripts
+--       end
+--     end
+--   end
+--
+--   local useAnyCpu = shouldUseAnyCpu()
+--   return determineFsiPath(useSdkScripts, useAnyCpu)
+-- end)(),
