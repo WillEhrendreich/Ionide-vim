@@ -806,8 +806,15 @@ M["fsharp/compilerLocation"]= function (error, result , context , config)
   )
 end
 
-M["workspace/workspaceFolders"] = function(_, _, ctx)
-  local client_id = ctx.client_id
+M["workspace/workspaceFolders"] = function(error, result, context, config)
+  if result then
+    M.notify(
+      "handling workspace/workspaceFolders response\n"
+        .. "result is: \n"
+        .. vim.inspect({ error or "", result or "", context or "", config or "" })
+    )
+  end
+  local client_id = context.client_id
   local client = vim.lsp.get_client_by_id(client_id)
   if not client then
     -- vim.err_message("LSP[id=", client_id, "] client has shut down after sending the message")
