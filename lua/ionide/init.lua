@@ -346,8 +346,8 @@ M.getCurrentBufferIonideClient = function()
 
 end
 
-M.getCurrentBufferIonideClientConfigRootDirOrCwd= function ()
-  local ionide = M.getCurrentBufferIonideClient()
+M.getIonideClientConfigRootDirOrCwd = function()
+  local ionide = M.getIonideClientAttachedToCurrentBufferOrFirstInActiveClients()
   if ionide then
    return ionide.config.root_dir
   else
