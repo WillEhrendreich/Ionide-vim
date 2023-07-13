@@ -1243,21 +1243,24 @@ function M.ReloadProjects()
 end
 
 function M.OnFSProjSave()
-  if vim.bo.ft == "fsharp_project" and M.MergedConfig.IonideNvimSettings.AutomaticReloadWorkspace and M.MergedConfig.IonideNvimSettings.AutomaticReloadWorkspace  == true then
-    local parentDir=  vim.fs.normalize(vim.fs.dirname(vim.api.nvim_buf_get_name(vim.api.nvim_get_current_buf())))
+  if
+    vim.bo.ft == "fsharp_project"
+    and M.MergedConfig.IonideNvimSettings.AutomaticReloadWorkspace
+    and M.MergedConfig.IonideNvimSettings.AutomaticReloadWorkspace == true
+  then
     M.notify("[Ionide] fsharp project saved, reloading...")
+    local parentDir = vim.fs.normalize(vim.fs.dirname(vim.api.nvim_buf_get_name(vim.api.nvim_get_current_buf())))
 
     if not vim.tbl_contains(M.projectFolders, parentDir) then
-      table.insert( M.projectFolders,parentDir)
+      table.insert(M.projectFolders, parentDir)
     end
     M.ReloadProjects()
-
   end
 end
 
 function M.ShowIonideClientWorkspaceFolders()
   ---@type lsp.Client|nil
-  local client = M.getCurrentBufferIonideClient()
+  local client = M.getIonideClientAttachedToCurrentBufferOrFirstInActiveClients()
   if client then
     local folders = client.workspace_folders or {}
     M.notify("[Ionide] WorkspaceFolders: \n" .. vim.inspect(folders))
@@ -1307,7 +1310,24 @@ function M.RegisterAutocmds()
     end,
   })
 
-  autocmd({  "BufEnter", "BufWritePost", "InsertLeave" }, {
+  autocmd({ "LspAttach" }, {
+    desc = "FSharp enable inlayHint on attach ",
+    group = grp("FSharp_enableInlayHint", { clear = true }),
+    pattern = "*.fs,*.fsi,*.fsx",
+    callback = function(args)
+      -- args.data.client_id
+      if M.MergedConfig.settings.FSharp.inlayHints.enabled == true then
+        vim.defer_fn(function()
+          M.notify("enabling lsp inlayHint")
+          vim.lsp.buf.inlay_hint(args.buf, true)
+        end, 2000)
+      else
+        M.notify("lsp inlayHints are not enabled.")
+      end
+    end,
+  })
+
+  autocmd({ "BufEnter", "BufWritePost", "InsertLeave" }, {
     desc = "FSharp Auto refresh code lens ",
     group = grp("FSharp_AutoRefreshCodeLens", { clear = true }),
     pattern = "*.fs,*.fsi,*.fsx",
