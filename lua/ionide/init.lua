@@ -339,6 +339,16 @@ local function stringEndsWith(s, suffix)
 end
 
 
+function M.notify(msg, level, opts)
+  local safeMessage = "[Ionide] - "
+  if type(msg) == "string" then
+    safeMessage = safeMessage .. msg
+  else
+    safeMessage = safeMessage .. vim.inspect(msg)
+  end
+  vim.notify(safeMessage, level, opts)
+end
+
 
 
 local M = {}
