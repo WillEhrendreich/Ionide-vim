@@ -711,73 +711,101 @@ M["fsharp/workspacePeek"] = function(result)
     local solutions = {}
     local directory
     if resultContent ~= nil then
-      local content =vim.json.decode(resultContent)
-      -- vim.notify("json decode of payload content : ".. vim.inspect(content or "not decoded"))
-    if content then
-    local kind = content.Kind
-      if kind and kind == "workspacePeek" then
-        local data = content.Data
-        if data ~= nil then
-          local found = data.Found
-          if found ~= nil then
-
-            ---@type Project[]
-            local projects = {}
-            for _, item in ipairs(found) do
-              if item.Type == "solution" then
-                table.insert(solutions, item)
-              elseif item.Type == "directory" then
-                directory = vim.fs.normalize(item.Data.Directory)
-              elseif item.Kind.Kind == "msbuildformat" then
-                table.insert(projects,item)
-              else-- else left in case I want some other type to be dealt with..
+      local content = vim.json.decode(resultContent)
       -- M.notify("json decode of payload content : ".. vim.inspect(content or "not decoded"))
+      if content then
         -- M.notify("json decode of payload content successful")
+        local kind = content.Kind
+        if kind and kind == "workspacePeek" then
           -- M.notify("workspace peek is content kind")
+          local data = content.Data
+          if data ~= nil then
             -- M.notify("Data not null")
+            local found = data.Found
+            if found ~= nil then
               -- M.notify("data.Found not null")
+
+              ---@type Project[]
+              local projects = {}
+              for _, item in ipairs(found) do
+                if item.Type == "solution" then
+                  table.insert(solutions, item)
+                elseif item.Type == "directory" then
+                  directory = vim.fs.normalize(item.Data.Directory)
+                elseif item.Kind.Kind == "msbuildformat" then
+                  table.insert(projects, item)
+                else -- else left in case I want some other type to be dealt with..
+                  M.notify("Unaccounted for item type in workspacePeek handler, " .. item.Type)
+                end
               end
-            end
-            local cwd =vim.fs.normalize( vim.fn.getcwd())
-            if directory == cwd then
-              -- vim.notify("WorkspacePeek directory \n"
+              local cwd = vim.fs.normalize(vim.fn.getcwd())
+              if directory == cwd then
+              -- M.notify("WorkspacePeek directory \n"
               --   ..
               --   directory
               --   ..
               --   "\nEquals current working directory\n"
               --   .. cwd
               -- )
-            else
-              vim.notify("WorkspacePeek directory \n"
-                ..
-                directory
-                ..
-                "Does not equal current working directory\n"
-                .. cwd
-              )
-            end
-            -- local solutionToLoad
-            local finalChoice
-            if #solutions > 0 then
-              -- vim.notify(vim.inspect(#solutions) .. " solutions found in workspace")
-              if #solutions > 1 then
-                -- vim.notify("More than one solution found in workspace!")
-                vim.ui.select(solutions, {
-                  prompt = "More than one solution found in workspace. Please pick one to load:",
-
-                  format_item = function(item)
-                    return vim.fn.fnamemodify(vim.fs.normalize(item.Data.Path),":p:.")
-                  end }, function(_, index) finalChoice =  solutions[index] end)
               else
-                   finalChoice =  solutions[1]
                 M.notify(
                   "WorkspacePeek directory \n" .. directory .. "Does not equal current working directory\n" .. cwd
                 )
+              end
+              -- local solutionToLoad
+              local finalChoice
+              if #solutions > 0 then
                 -- M.notify(vim.inspect(#solutions) .. " solutions found in workspace")
+                if #solutions > 1 then
                   -- M.notify("More than one solution found in workspace!")
+                  vim.ui.select(solutions, {
+                    prompt = "More than one solution found in workspace. Please pick one to load:",
+
+                    format_item = function(item)
+                      return vim.fn.fnamemodify(vim.fs.normalize(item.Data.Path), ":p:.")
+                    end,
+                  }, function(_, index)
+                    finalChoice = solutions[index]
+                  end)
+                else
+                  finalChoice = solutions[1]
+                end
+
+                finalChoice = finalChoice
+                  or {
+                    Data = {
+                      Path = vim.fn.getcwd(),
+                      Items = {
+                        Name = vim.fs.find(function(name, _)
+                          return name:match(".*%.[cf]sproj$")
+                        end, { type = "file" }),
+                      },
+                    },
+                  }
+                local finalPath = vim.fs.normalize(finalChoice.Data.Path)
                 M.notify("Loading solution : " .. vim.fn.fnamemodify(vim.fs.normalize(finalPath), ":p:."))
+
+                ---@type string[]
+                local pathsToLoad = {}
+                local projects = finalChoice.Data.Items
+                for _, project in ipairs(projects) do
+                  if project.Name:match("sproj") then
+                    table.insert(pathsToLoad, vim.fs.normalize(project.Name))
+                  end
+                end
+
                 M.notify("Going to ask FsAutoComplete to load these project paths.. " .. vim.inspect(pathsToLoad))
+                local projectParams = {}
+                for _, path in ipairs(pathsToLoad) do
+                  table.insert(projectParams, M.CreateFSharpProjectParams(path))
+                end
+                M.CallFSharpWorkspaceLoad(pathsToLoad)
+                for _, proj in ipairs(projectParams) do
+                  vim.lsp.buf_request(0, "fsharp/project", { proj }, function(payload)
                     -- M.notify("fsharp/project load request has a payload of :  " .. vim.inspect( payload or "No Result from Server"))
+                  end)
+                end
+
               -- if solutionToLoad ~= nil then
               --   M.notify("solutionToLoad is set to " ..
               --     solutionToLoad .. " \nthough currently that doesn't do anything..")
@@ -787,32 +815,6 @@ M["fsharp/workspacePeek"] = function(result)
               else
                 M.notify("Only one solution in workspace path, projects should be loaded already. ")
               end
-
-              finalChoice = finalChoice or {Data={Path = vim.fn.getcwd(),Items ={Name=
-                vim.fs.find(function(name, _) return name:match('.*%.[cf]sproj$') end ,{type= "file" })}}}
-              local finalPath = vim.fs.normalize(finalChoice.Data.Path)
-
-                  ---@type string[]
-                  local pathsToLoad = {}
-                  local projects = finalChoice.Data.Items
-                    for _,project in ipairs(projects) do
-                      if project.Name:match( "sproj") then
-                        table.insert(pathsToLoad,vim.fs.normalize(project.Name))
-                      end
-                    end
-
-                   local  projectParams ={}
-                    for _, path in ipairs(pathsToLoad) do
-                      table.insert(projectParams,M.CreateFSharpProjectParams(path))
-                    end
-                    M.CallFSharpWorkspaceLoad(pathsToLoad)
-                    for _, proj in ipairs(projectParams) do
-                      vim.lsp.buf_request(0,"fsharp/project",{proj},
-                        function (payload)
-                    end)
-
-                    end
-
             else
               -- M.notify("for some reason data.Found was null. .... why?")
             end
