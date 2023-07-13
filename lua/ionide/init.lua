@@ -907,23 +907,28 @@ end
 ---@type IonideOptions
 M.DefaultLspConfig = {
   IonideNvimSettings = M.DefaultNvimSettings,
-  filetypes = { "fsharp"},
+  filetypes = { "fsharp" },
   name = "ionide",
   cmd = M.DefaultNvimSettings.FsautocompleteCommand,
+  -- cmd_env = M.DefaultNvimSettings.FsautocompleteCommand,
   autostart = true,
   handlers = M.CreateHandlers(),
   init_options = { AutomaticWorkspaceInit = M.DefaultNvimSettings.AutomaticWorkspaceInit },
-  on_init = M.Initialize,
-  on_attach =function (client, bufnr)
-   local isProjFile  =vim.bo[bufnr].filetype == "fsharp_project"
-    if isProjFile then
-      if lspconfig_is_present then
-        local lspconfig = require("lspconfig")
-      end
+  -- on_attach = function(client, bufnr)
+  -- local isProjFile = vim.bo[bufnr].filetype == "fsharp_project"
+  -- if isProjFile then
+  --   if lspconfig_is_present then
+  --     local lspconfig = require("lspconfig")
+  --   end
+  -- else
+  --   return
+  -- end
 
-  else return end
-  end,
+  -- end,
   -- on_new_config = M.Initialize,
+  on_init = function()
+    M.Initialize()
+  end,
   settings = { FSharp = M.DefaultServerSettings },
   root_dir = M.GitFirstRootDir,
   log_level = lsp.protocol.MessageType.Warning,
