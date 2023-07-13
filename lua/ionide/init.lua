@@ -594,6 +594,21 @@ M["textDocument/documentHighlight"] = function(error, result, context, config)
   end
 end
 
+M["textDocument/hover"] = function(error, result, context, config)
+  M.notify(
+    "handling "
+      .. "textDocument/hover"
+      .. " | "
+      .. "result is: \n"
+      .. vim.inspect({ error or "", result or "", context or "", config or "" })
+  )
+  if result then
+    if result.content then
+    end
+  end
+  vim.lsp.handlers.hover(error, result, context, config)
+end
+
 end
 
   vim.notify("handling notifyWorkspace")
