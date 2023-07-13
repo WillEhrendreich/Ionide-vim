@@ -1061,19 +1061,21 @@ end
 ---Calls the Lsp server endpoint with the method name, parameters
 ---@param method (string) LSP method name
 ---@param params table|nil Parameters to send to the server
-function M.Call(method, params )
+---@param handler function|nil optional handler to use instead of the default method.
+--- if nil then it will try to use the method of the same name
+--- in M.Handlers from Ionide, if it exists.
+--- if that returns nil, then the vim.lsp.buf_notify() request
+--- should fallback to the normal built in
+--- vim.lsp.handlers\[["some/lspMethodNameHere"]\] general execution strategy
+---
+---@return table<integer, integer>, fun() 2-tuple:
+---  - Map of client-id:request-id pairs for all successful requests.
+---  - Function which can be used to cancel all the requests. You could instead
+---    iterate all clients and call their `cancel_request()` methods.
+function M.Call(method, params, handler)
   ---@type lsp-handler
-  local handler =
-      function(responseError, result, handlerContext, config)
-      local methodtoCall = M.Handlers[handlerContext.method]
-    if methodtoCall then
-
-      methodtoCall(responseError, result, handlerContext, config)
-    else
-      vim.notify("tried to call method " .. handlerContext.method .. " but it couldn't be found among Ionide Handlers list .. \n" ..vim.inspect(M.Handlers))
-    end
-      end
-  lsp.buf_request(0, method, params, handler)
+  handler = handler or M.Handlers[method]
+  return lsp.buf_request(0, method, params, handler)
 end
 
 
