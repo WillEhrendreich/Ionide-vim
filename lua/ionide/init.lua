@@ -1451,7 +1451,15 @@ function M.DelegateToLspConfig(config)
     configs["ionide"] = {
       default_config = config,
       docs = {
-        description = [[ https://github.com/willehrendreich/Ionide-vim ]],
+        description = [[
+          WARNING: This version of ionide is a fork,
+          and absolutely useless to anyone not runnning Neovim.
+          I will not be maintaining support for regular vim.
+          In fact, it shouldn't even run, it should just direct you to
+          the community maintained official one. This is
+          my version that I've sunk stupid amounts of time into,
+          and it's meant to be a better alternative.
+          https://github.com/willehrendreich/Ionide-vim ]],
       },
     }
   end
