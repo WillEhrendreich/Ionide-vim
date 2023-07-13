@@ -374,7 +374,6 @@ M.DefaultServerSettings = {
   --   { AutomaticWorkspaceInit: bool option AutomaticWorkspaceInit = false
   --     WorkspaceModePeekDeepLevel: int option WorkspaceModePeekDeepLevel = 2
   workspaceModePeekDeepLevel = 4,
-  -- automaticWorkspaceInit = true,
 
   fsac = {
     attachDebugger = false,
