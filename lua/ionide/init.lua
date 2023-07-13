@@ -823,23 +823,22 @@ M["workspace/workspaceFolders"] = function(error, result, context, config)
   return client.workspace_folders or vim.NIL
 end
 
-M["fsharp/signature"]= function(result)
-    if result then
-      if result.result then
-        if result.result.content then
-          local content = vim.json.decode(result.result.content)
-          if content then
-            if content.Data then
-              -- Using gsub() instead of substitute() in Lua
-              -- and % instead of :
-              print(content.Data:gsub("\n+$", " "))
-            end
+M["fsharp/signature"] = function(error, result, context, config)
+  if result then
+    if result.result then
+      if result.result.content then
+        local content = vim.json.decode(result.result.content)
+        if content then
+          if content.Data then
+            -- Using gsub() instead of substitute() in Lua
+            -- and % instead of :
+            M.notify(content.Data:gsub("\n+$", " "))
           end
         end
       end
     end
   end
-
+end
 
 function M.CreateHandlers()
   local h = {
@@ -848,7 +847,7 @@ function M.CreateHandlers()
     "fsharp/workspaceLoad",
     "textDocument/documentHighlight",
     "fsharp/compilerLocation",
-    "fsharp/signature"
+    "fsharp/signature",
   }
   local r = {}
   for _,method in ipairs(h) do
@@ -1084,9 +1083,6 @@ function M.CallLspNotify(method, params)
   lsp.buf_notify(0, method, params)
 end
 
--- function M.CallFSharpSignature(filePath, line, character cont)
---   return M.Call("fsharp/signature", M.TextDocumentPositionParams(filePath, line, character), cont)
--- end
 --
 -- function M.CallFSharpSignatureData(filePath, line, character, cont)
 --   return M.Call("fsharp/signatureData", M.TextDocumentPositionParams(filePath, line, character), cont)
@@ -1166,8 +1162,8 @@ function M.CallFSharpAddFileAbove(projectPath, currentVirtualPath, newFileVirtua
   return M.Call("fsharp/addFileAbove", M.DotnetFile2Request(projectPath, currentVirtualPath, newFileVirtualPath) )
 end
 
-function M.CallFSharpSignature(filePath, line, character )
-  return M.Call("fsharp/signature", M.TextDocumentPositionParams(filePath, line, character) )
+function M.CallFSharpSignature(filePath, line, character, handler)
+  return M.Call("fsharp/signature", M.TextDocumentPositionParams(filePath, line, character), handler)
 end
 
 function M.CallFSharpSignatureData(filePath, line, character )
@@ -1245,12 +1241,10 @@ function M.CallFSharpDocumentationSymbol(xmlSig, assembly)
   return M.Call("fsharp/documentationSymbol", M.DocumentationForSymbolRequest(xmlSig, assembly))
 end
 
-
 ---this should take the settings.FSharp table
 ---@param newSettingsTable _.lspconfig.settings.fsautocomplete.FSharp
 function M.UpdateServerConfig(newSettingsTable)
   -- local input = vim.fn.input({ prompt = "Attach your debugger, to process " .. vim.inspect(vim.fn.getpid()) })
-
   M.CallLspNotify("workspace/didChangeConfiguration", newSettingsTable)
 end
 
@@ -1314,32 +1308,6 @@ function M.ShowConfigs()
   -- print("[Ionide] Last passed in Config: \n" .. vim.inspect(M.PassedInConfig))
   print("[Ionide] Last final merged Config: \n" .. vim.inspect(M.MergedConfig))
   M.ShowIonideClientWorkspaceFolders()
-end
-
-
--- function! fsharp#showSignature()
---     function! s:callback_showSignature(result)
---         let result = a:result
---         if exists('result.result.content')
---             let content = json_decode(result.result.content)
---             if exists('content.Data')
---                 echo substitute(content.Data, '\n\+$', ' ', 'g')
---             endif
---         endif
---     endfunction e
---     call s:signature(expand('%:p'), line('.') - 1, col('.') - 1, function("s:callback_showSignature"))
--- endfunction
-
--- function! fsharp#OnCursorMove()
---     if g:fsharp#show_signature_on_cursor_move
---         call fsharp#showSignature()
---     endif
--- endfunction
---
-function M.OnCursorMove()
-  if M.MergedConfig.IonideNvimSettings.ShowSignatureOnCursorMove then
-    M.CallFSharpSignature(vim.fn.expand("%:p"), vim.fn.line(".") - 1, vim.fn.col(".") - 1)
-  end
 end
 
 ---applies a recommended color scheme for diagnostics and CodeLenses
