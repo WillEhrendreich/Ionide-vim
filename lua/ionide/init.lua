@@ -883,17 +883,17 @@ M["fsharp/documentationSymbol"] = function(error, result, context, config)
 end
 
 M["fsharp/notifyWorkspace"] = function(payload)
-  M.notify("handling notifyWorkspace")
+  -- M.notify("handling notifyWorkspace")
   local content = vim.json.decode(payload.content)
   -- M.notify("notifyWorkspace Decoded content is : \n"..vim.inspect(content))
   if content then
     if content.Kind == "projectLoading" then
-      M.notify("[Ionide] Loading " .. content.Data.Project)
-      -- print("[Ionide] now calling AddOrUpdateThenSort on table  " .. vim.inspect(Workspace))
+      M.notify("Loading " .. content.Data.Project)
+      -- M.notify("now calling AddOrUpdateThenSort on table  " .. vim.inspect(Workspace))
       --
       -- table.insert( M.Projects, content.Data.Project)
       -- -- local dir = vim.fs.dirname(content.Data.Project)
-      -- print("after attempting to reassign table value it looks like this : " .. vim.inspect(Workspace))
+      -- M.notify("after attempting to reassign table value it looks like this : " .. vim.inspect(Workspace))
     elseif content.Kind == "project" then
       local k = content.Data.Project
       local projInfo = {}
@@ -901,8 +901,8 @@ M["fsharp/notifyWorkspace"] = function(payload)
 
       M.Projects = vim.tbl_deep_extend("force", M.Projects, projInfo)
     elseif content.Kind == "workspaceLoad" and content.Data.Status == "finished" then
-      -- print("[Ionide] calling updateServerConfig ... ")
-      -- print("[Ionide] before calling updateServerconfig, workspace looks like:   " .. vim.inspect(Workspace))
+      -- M.notify("calling updateServerConfig ... ")
+      -- M.notify("before calling updateServerconfig, workspace looks like:   " .. vim.inspect(Workspace))
 
       for proj, projInfoData in pairs(M.Projects) do
         local dir = vim.fs.dirname(proj)
@@ -912,19 +912,18 @@ M["fsharp/notifyWorkspace"] = function(payload)
         end
       end
       -- M.UpdateServerConfig(M.MergedConfig.settings.FSharp)
-      -- print("[Ionide] after calling updateServerconfig, workspace looks like:   " .. vim.inspect(Workspace))
+      -- M.notify("after calling updateServerconfig, workspace looks like:   " .. vim.inspect(Workspace))
       local projectCount = vim.tbl_count(M.Projects)
       local projNames = vim.tbl_map(function(s)
         return vim.fn.fnamemodify(s, ":P:.")
       end, vim.tbl_keys(M.Projects))
       if projectCount > 0 then
         if projectCount > 1 then
-          M.notify("[Ionide] Loaded " .. projectCount .. " projects:\n" .. vim.inspect(projNames))
         else
-          M.notify("[Ionide] Loaded project:\n" .. vim.fs.normalize(vim.inspect(projNames[1])))
+          M.notify("Loaded project:\n" .. vim.fs.normalize(vim.inspect(projNames[1])))
         end
       else
-        M.notify("[Ionide] Workspace is empty! Something went wrong. ")
+        M.notify("Workspace is empty! Something went wrong. ")
       end
       local deleteMeFiles = vim.fs.find(function(name, _)
         return name:match(".*TempFileForProjectInitDeleteMe.fs$")
@@ -1474,12 +1473,12 @@ function M.ShowLoadedProjects()
 end
 
 function M.ReloadProjects()
-  M.notify("[Ionide] Reloading Projects")
+  M.notify("Reloading Projects")
   local foldersCount = #M.projectFolders
   if foldersCount > 0 then
     M.CallFSharpWorkspaceLoad(M.projectFolders)
   else
-    M.notify("[Ionide] Workspace is empty")
+    M.notify("Workspace is empty")
   end
 end
 
@@ -1489,7 +1488,7 @@ function M.OnFSProjSave()
     and M.MergedConfig.IonideNvimSettings.AutomaticReloadWorkspace
     and M.MergedConfig.IonideNvimSettings.AutomaticReloadWorkspace == true
   then
-    M.notify("[Ionide] fsharp project saved, reloading...")
+    M.notify("fsharp project saved, reloading...")
     local parentDir = vim.fs.normalize(vim.fs.dirname(vim.api.nvim_buf_get_name(vim.api.nvim_get_current_buf())))
 
     if not vim.tbl_contains(M.projectFolders, parentDir) then
@@ -1504,19 +1503,19 @@ function M.ShowIonideClientWorkspaceFolders()
   local client = M.getIonideClientAttachedToCurrentBufferOrFirstInActiveClients()
   if client then
     local folders = client.workspace_folders or {}
-    M.notify("[Ionide] WorkspaceFolders: \n" .. vim.inspect(folders))
+    M.notify("WorkspaceFolders: \n" .. vim.inspect(folders))
   else
-    M.notify("[Ionide] No ionide client found, no workspace folders to show! \n")
+    M.notify("No ionide client found, no workspace folders to show! \n")
   end
 end
 
 function M.ShowNvimSettings()
-  M.notify("[Ionide] NvimSettings: \n" .. vim.inspect(M.MergedConfig.IonideNvimSettings))
+  M.notify("NvimSettings: \n" .. vim.inspect(M.MergedConfig.IonideNvimSettings))
 end
 
 function M.ShowConfigs()
-  -- M.notify("[Ionide] Last passed in Config: \n" .. vim.inspect(M.PassedInConfig))
-  M.notify("[Ionide] Last final merged Config: \n" .. vim.inspect(M.MergedConfig))
+  -- M.notify("Last passed in Config: \n" .. vim.inspect(M.PassedInConfig))
+  M.notify("Last final merged Config: \n" .. vim.inspect(M.MergedConfig))
   M.ShowIonideClientWorkspaceFolders()
 end
 
@@ -2117,7 +2116,7 @@ function M.OpenFsi(returnFocus)
           --"                     close
           vim.cmd.close()
           --"                     echom "[FSAC] Failed to open FSI."
-          M.notify("[Ionide] failed to open FSI")
+          M.notify("failed to open FSI")
           --"                     return -1
           return -1
           --"                 endif
@@ -2157,7 +2156,7 @@ function M.OpenFsi(returnFocus)
           vim.cmd.close()
           --"                     echom "[FSAC] Failed to open FSI."
 
-          M.notify("[Ionide] failed to open FSI")
+          M.notify("failed to open FSI")
           --"                     return -1
           return -1
           --"                 endif
@@ -2179,7 +2178,7 @@ function M.OpenFsi(returnFocus)
       --"         else
     else
       --"             echom "[FSAC] Your (neo)vim does not support terminal".
-      M.notify("[Ionide] Your neovim doesn't support terminal.")
+      M.notify("Your neovim doesn't support terminal.")
       --"             return 0
       return 0
       --"         endif
@@ -2194,7 +2193,7 @@ end
 --   M.notify("OpenFsi got return focus as " .. vim.inspect(returnFocus))
 --   local isNeovim = vim.fn.has('nvim')
 --   if not isNeovim then
---     M.notify("[Ionide] This version of ionide is for Neovim only. please try www.github.com/ionide/ionide-vim")
+--     M.notify("This version of ionide is for Neovim only. please try www.github.com/ionide/ionide-vim")
 --   end
 --     if vim.fn.exists('*termopen') == true or vim.fn.exists('*term_start') then
 --       --"             let current_win = win_getid()
@@ -2229,12 +2228,12 @@ end
 --         fsiBuffer = vim.fn.bufnr(vim.api.nvim_get_current_buf())
 --       else
 --         vim.cmd.close()
---         M.notify("[Ionide] failed to open FSI")
+--         M.notify("failed to open FSI")
 --         return -1
 --       end
 --     end
 --   end
---   M.notify("[Ionide] This version of ionide is for Neovim only. please try www.github.com/ionide/ionide-vim")
+--   M.notify("This version of ionide is for Neovim only. please try www.github.com/ionide/ionide-vim")
 --   if returnFocus then winGoToIdSafe(currentWin) end
 --   return fsiBuffer
 -- end
@@ -2442,12 +2441,12 @@ end
 -- "
 
 function M.SendFsi(text)
-  -- M.notify("[Ionide] Text being sent to FSI:\n" .. text)
+  -- M.notify("Text being sent to FSI:\n" .. text)
   local openResult = M.OpenFsi(not M.MergedConfig.IonideNvimSettings.FsiFocusOnSend or false)
-  -- M.notify("[Ionide] result of openfsi function is " .. vim.inspect(openResult))
+  -- M.notify("result of openfsi function is " .. vim.inspect(openResult))
   if not openResult then
     openResult = 1
-    -- M.notify("[Ionide] changing result to 1 and hoping for the best. lol. " .. vim.inspect(openResult))
+    -- M.notify("changing result to 1 and hoping for the best. lol. " .. vim.inspect(openResult))
   end
 
   if openResult > 0 then
