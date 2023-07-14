@@ -1,5 +1,5 @@
 --  www.github.com/willehrendreich/ionide-vim
-local vim = vim
+
 local validate = vim.validate
 local api = vim.api
 local uc = vim.api.nvim_create_user_command
@@ -888,7 +888,7 @@ M["fsharp/notifyWorkspace"] = function(payload)
   -- M.notify("notifyWorkspace Decoded content is : \n"..vim.inspect(content))
   if content then
     if content.Kind == "projectLoading" then
-      M.notify("Loading " .. content.Data.Project)
+      M.notify("Loading " .. vim.fs.normalize(content.Data.Project))
       -- M.notify("now calling AddOrUpdateThenSort on table  " .. vim.inspect(Workspace))
       --
       -- table.insert( M.Projects, content.Data.Project)
@@ -911,16 +911,20 @@ M["fsharp/notifyWorkspace"] = function(payload)
           table.insert(M.projectFolders, dir)
         end
       end
-      -- M.UpdateServerConfig(M.MergedConfig.settings.FSharp)
       -- M.notify("after calling updateServerconfig, workspace looks like:   " .. vim.inspect(Workspace))
       local projectCount = vim.tbl_count(M.Projects)
-      local projNames = vim.tbl_map(function(s)
-        return vim.fn.fnamemodify(s, ":P:.")
-      end, vim.tbl_keys(M.Projects))
       if projectCount > 0 then
+        local util = require("vim.lsp.util")
+        local projNames = util.convert_input_to_markdown_lines(vim.tbl_map(function(s)
+          return vim.fn.fnamemodify(s, ":P:.")
+        end, vim.tbl_keys(M.Projects)))
         if projectCount > 1 then
+          M.notify("Loaded " .. projectCount .. " projects:")
         else
-          M.notify("Loaded project:\n" .. vim.fs.normalize(vim.inspect(projNames[1])))
+          M.notify("Loaded 1 project:")
+        end
+        for _, projName in pairs(projNames) do
+          M.notify("Loaded " .. vim.fs.normalize(vim.inspect(projName)))
         end
       else
         M.notify("Workspace is empty! Something went wrong. ")
@@ -957,14 +961,14 @@ M["fsharp/workspaceLoad"] = function(result)
   end
 end
 
-M["fsharp/workspacePeek"] = function(result)
+M["fsharp/workspacePeek"] = function(error, result, context, config)
   if result then
     local resultContent = result.content
-    M.notify(
-      "handling workspacePeek response\n"
-        .. "result is: \n"
-        .. vim.inspect(resultContent or "result.content could not be read correctly")
-    )
+    -- M.notify(
+    --   "handling workspacePeek response\n"
+    --     .. "result is: \n"
+    --     .. vim.inspect(resultContent or "result.content could not be read correctly")
+    -- )
     ---@type Solution []
     local solutions = {}
     local directory
@@ -1540,13 +1544,10 @@ function M.RegisterAutocmds()
     callback = function(args)
       -- args.data.client_id
       vim.defer_fn(function()
-        M.notify("clearing lsp codelens and refreshing")
+        -- M.notify("clearing lsp codelens and refreshing")
         vim.lsp.codelens.clear()
         vim.lsp.codelens.refresh()
       end, 7000)
-      -- vim.lsp.codelens.clear()
-
-      -- vim.lsp.codelens.refresh()
     end,
   })
 
@@ -1558,11 +1559,11 @@ function M.RegisterAutocmds()
       -- args.data.client_id
       if M.MergedConfig.settings.FSharp.inlayHints.enabled == true then
         vim.defer_fn(function()
-          M.notify("enabling lsp inlayHint")
+          -- M.notify("enabling lsp inlayHint")
           vim.lsp.buf.inlay_hint(args.buf, true)
         end, 2000)
       else
-        M.notify("lsp inlayHints are not enabled.")
+        -- M.notify("lsp inlayHints are not enabled.")
       end
     end,
   })
@@ -1598,7 +1599,7 @@ function M.RegisterAutocmds()
               treesitter = false,
             }
           )
-          M.CallFSharpSignature(vim.uri_from_bufnr(pos.buffer), pos.col - 1, pos.row - 1)
+          M.CallFSharpSignature(vim.uri_from_bufnr(pos.buffer), pos.col, pos.row)
         end, 1000)
       end
     end,
@@ -1622,20 +1623,17 @@ function M.Initialize()
     return
   end
 
-  M.notify("Ionide Initializing")
+  M.notify("Initializing")
 
-  M.notify("Ionide calling updateServerConfig...")
+  M.notify("Calling updateServerConfig...")
   M.UpdateServerConfig(M.MergedConfig.settings.FSharp)
 
-  M.notify("Ionide calling SetKeymaps...")
+  M.notify("Setting Keymaps...")
   M.SetKeymaps()
-  M.notify("Ionide calling registerAutocmds...")
+  M.notify("Registering Autocommands...")
   M.RegisterAutocmds()
   local thisBufnr = vim.api.nvim_get_current_buf()
   local thisBufname = vim.api.nvim_buf_get_name(thisBufnr)
-  M.notify(
-    "Ionide calling custom WorkspacePeekRequest in relation to file .. " .. vim.fn.fnamemodify(thisBufname, ":p:.")
-  )
   ---@type lsp.Client
   local thisIonide = vim.lsp.get_active_clients({ bufnr = thisBufnr, name = "ionide" })[1]
     or { workspace_folders = { { vim.fn.getcwd() } } }
@@ -1646,7 +1644,7 @@ function M.Initialize()
     M.MergedConfig.settings.FSharp.workspaceModePeekDeepLevel,
     M.MergedConfig.settings.FSharp.excludeProjectDirectories
   )
-  M.notify("Ionide Initialized")
+  M.notify("Fully Initialized!")
 end
 
 -- M.Manager = nil
@@ -1795,18 +1793,6 @@ autocmd({ "BufReadPost" }, {
     end
   end,
 })
-
--- vim.api.nvim_create_autocmd("BufWritePost", {
---   pattern = "*.fsproj",
---   desc = "FSharp Auto refresh on project save",
---   group = vim.api.nvim_create_augroup("FSharpLCFsProj", { clear = true }),
---   callback = function() M.OnFSProjSave() end
--- })
-
---augroup FSharpLC_fsproj
--- autocmd! BufWritePost *.fsproj call fsharp#OnFSProjSave()
---augroup END
----- end ftplugin section ----
 
 ---Create Ionide Manager
 ---@param config IonideOptions
