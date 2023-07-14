@@ -286,6 +286,7 @@ end
 ---@field UseRecommendedServerConfig boolean
 ---@field AutomaticWorkspaceInit boolean
 ---@field AutomaticReloadWorkspace boolean
+---@field AutomaticCodeLensRefresh boolean
 ---@field ShowSignatureOnCursorMove boolean
 ---@field FsiCommand string
 ---@field FsiKeymap string
@@ -296,10 +297,7 @@ end
 --- defaults to false.
 ---@field LspAutoSetup boolean
 --- Whether or not to apply a recommended color scheme for diagnostics and CodeLenses
----@field LspRecommendedColorscheme boolean
---- enables Lsp CodeLenses.
---- defaults to true
----@field LspCodelens boolean
+---@field LspRecommendedColorScheme boolean
 ---@field FsiVscodeKeymaps boolean
 ---@field StatusLine string
 ---@field AutocmdEvents table<string>
@@ -649,14 +647,14 @@ M.DefaultNvimSettings = {
   UseRecommendedServerConfig = false,
   AutomaticWorkspaceInit = true,
   AutomaticReloadWorkspace = true,
+  AutomaticCodeLensRefresh = true,
   ShowSignatureOnCursorMove = true,
   FsiCommand = "dotnet fsi",
   FsiKeymap = "vscode",
   FsiWindowCommand = "botright 10new",
   FsiFocusOnSend = false,
   LspAutoSetup = false,
-  LspRecommendedColorscheme = false,
-  LspCodelens = true,
+  LspRecommendedColorScheme = false,
   FsiVscodeKeymaps = true,
   Statusline = "Ionide",
   AutocmdEvents = {
@@ -1535,19 +1533,22 @@ function M.ApplyRecommendedColorscheme()
 end
 
 function M.RegisterAutocmds()
-  -- if M.LspCodelens == true or M.LspCodelens == 1 then
-
   autocmd({ "LspAttach" }, {
     desc = "FSharp clear code lens on attach ",
     group = grp("FSharp_ClearCodeLens", { clear = true }),
     pattern = "*.fs,*.fsi,*.fsx",
     callback = function(args)
-      -- args.data.client_id
-      vim.defer_fn(function()
-        -- M.notify("clearing lsp codelens and refreshing")
-        vim.lsp.codelens.clear()
-        vim.lsp.codelens.refresh()
-      end, 7000)
+      if
+        M.MergedConfig.settings.FSharp.codeLenses.references.enabled == true
+        or M.MergedConfig.settings.FSharp.codeLenses.references.enabled == true
+      then
+        vim.defer_fn(function()
+          vim.lsp.codelens.clear()
+          vim.lsp.codelens.refresh()
+          vim.lsp.codelens.refresh()
+          -- M.notify("lsp codelens refreshing")
+        end, 7000)
+      end
     end,
   })
 
@@ -1570,13 +1571,20 @@ function M.RegisterAutocmds()
 
   autocmd({ "BufEnter", "BufWritePost", "InsertLeave" }, {
     desc = "FSharp Auto refresh code lens ",
-    group = grp("FSharp_AutoRefreshCodeLens", { clear = true }),
+    group = grp("IonideAutomaticCodeLensRefresh", { clear = true }),
     pattern = "*.fs,*.fsi,*.fsx",
     callback = function(arg)
-      vim.defer_fn(function()
-        vim.lsp.codelens.refresh()
-        -- M.notify("lsp codelens refreshing")
-      end, 2000)
+      if
+        M.MergedConfig.settings.FSharp.codeLenses.references.enabled == true
+        or M.MergedConfig.settings.FSharp.codeLenses.references.enabled == true
+      then
+        if M.MergedConfig.IonideNvimSettings.AutomaticCodeLensRefresh == true then
+          vim.defer_fn(function()
+            vim.lsp.codelens.refresh()
+            -- M.notify("lsp codelens refreshing")
+          end, 2000)
+        end
+      end
     end,
   })
 
@@ -1610,7 +1618,7 @@ function M.RegisterAutocmds()
     group = grp("FSharp_ApplyRecommendedColorScheme", { clear = true }),
     pattern = "*.fs,*.fsi,*.fsx",
     callback = function()
-      if M.MergedConfig.IonideNvimSettings.LspRecommendedColorscheme == true then
+      if M.MergedConfig.IonideNvimSettings.LspRecommendedColorScheme == true then
         M.ApplyRecommendedColorscheme()
       end
     end,
@@ -2426,6 +2434,8 @@ end
 --" endfunction
 -- "
 
+---sends text to FSI
+---@param text string
 function M.SendFsi(text)
   -- M.notify("Text being sent to FSI:\n" .. text)
   local openResult = M.OpenFsi(not M.MergedConfig.IonideNvimSettings.FsiFocusOnSend or false)
@@ -2446,7 +2456,7 @@ function M.SendFsi(text)
 end
 
 function M.GetCompleteBuffer()
-  return vim.api.nvim_buf_get_lines(vim.api.nvim_get_current_buf(), 1, -1, false)
+  return vim.fn.join(vim.api.nvim_buf_get_lines(vim.api.nvim_get_current_buf(), 1, -1, false), "\n")
 end
 
 function M.SendSelectionToFsi()
@@ -2546,26 +2556,35 @@ end
 --                • preview: (function) Preview callback for 'inccommand'
 --                  |:command-preview|
 
-uc("IonideCompilerLocation", function()
-  M.CallFSharpCompilerLocation()
-end, { desc = "Get compiler location data from FSAC" })
+uc("IonideUpdateServerConfiguration", function()
+  M.UpdateServerConfig(M.MergedConfig.settings.FSharp)
+end, { desc = "Notify FSAC of the settings in merged settings table" })
 
 uc("IonideTestDocumentationForSymbolRequestParsing", function()
   M.CallFSharpDocumentationSymbol("T:System.String.Trim", "netstandard")
 end, { desc = "testing out the call to the symbol request from a hover" })
-uc("IonideSendFSI", M.SendFsi, { desc = "Ionide - Send text to FSharp Interactive" })
+uc(
+  "IonideSendCurrentLineToFSI",
+  M.SendLineToFsi(),
+  { desc = "Ionide - Send Current line's text to FSharp Interactive" }
+)
+uc(
+  "IonideSendWholeBufferToFSI",
+  M.SendAllToFsi(),
+  { desc = "Ionide - Send Current buffer's text to FSharp Interactive" }
+)
 uc("IonideToggleFSI", M.ToggleFsi, { desc = "Ionide - Toggle FSharp Interactive" })
 uc("IonideQuitFSI", M.QuitFsi, { desc = "Ionide - Quit FSharp Interactive" })
 uc("IonideResetFSI", M.ResetFsi, { desc = "Ionide - Reset FSharp Interactive" })
 
-uc("IonideShowConfigs", M.ShowConfigs, {})
+uc("IonideShowConfigs", M.ShowConfigs, { desc = "Shows the merged config." })
 uc("IonideShowWorkspaceFolders", M.ShowIonideClientWorkspaceFolders, {})
 uc("IonideLoadProjects", function(opts)
   if type(opts.fargs) == "string" then
     local projTable = { opts.fargs }
     M.LoadProjects(projTable)
   elseif type(opts.fargs) == "table" then
-    local projects = opts.faargs
+    local projects = opts.fargs
     M.LoadProjects(projects)
   elseif opts.nargs > 1 then
     local projects = {}
@@ -2578,14 +2597,14 @@ uc("IonideLoadProjects", function(opts)
   end
 end, {})
 
-uc("IonideShowLoadedProjects", M.ShowLoadedProjects, {})
+uc("IonideShowLoadedProjects", M.ShowLoadedProjects, { desc = "Shows just the project names that have been loaded." })
 uc("IonideShowNvimSettings", M.ShowNvimSettings, {})
 uc("IonideShowAllLoadedProjectInfo", function()
   M.notify(M.Projects)
-end, { desc = "Show all currently loaded Project Info, as far as Neovim knows or cares" })
+end, { desc = "Show all currently loaded Project Info" })
 uc("IonideShowAllLoadedProjectFolders", function()
   M.notify(table.concat(M.projectFolders, "\n"))
-end, { desc = "Show all currently loaded project folders, as far as Neovim knows or cares" })
+end, { desc = "Show all currently loaded project folders" })
 uc("IonideWorkspacePeek", function()
   M.CallFSharpWorkspacePeek(
     M.getIonideClientConfigRootDirOrCwd(),
