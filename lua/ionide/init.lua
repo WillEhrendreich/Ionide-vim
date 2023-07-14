@@ -2091,12 +2091,12 @@ function M.OpenFsi(returnFocus)
       --"             if s:fsi_buffer >= 0 && bufexists(str2nr(s:fsi_buffer))
       if fsiBuffer >= 0 and vim.fn.bufexists(fsiBuffer) then
         --"                 exec 'b' s:fsi_buffer
-        vim.fn.cmd("b" .. tostring(fsiBuffer))
+        vim.cmd.b(string.format("%i", fsiBuffer))
         --"                 normal G
-        vim.cmd("normal G")
+        vim.cmd.normal("G")
         --"                 if !has('nvim') && mode() == 'n' | execute "normal A" | endif
         if not isNeovim and vim.api.nvim_get_mode()[1] == "n" then
-          vim.cmd("normal A")
+          vim.cmd.normal("A")
         end
         --"                 if a:returnFocus | call s:win_gotoid_safe(current_win) | endif
         if returnFocus then
@@ -2168,7 +2168,7 @@ function M.OpenFsi(returnFocus)
       vim.opt_local.bufhidden = "hide"
       --"             normal G
 
-      vim.cmd("normal G")
+      vim.cmd.normal("G")
       --"             if a:returnFocus | call s:win_gotoid_safe(current_win) | endif
       if returnFocus then
         winGoToIdSafe(currentWin)
@@ -2209,7 +2209,7 @@ end
 --       --"             if s:fsi_buffer >= 0 && bufexists(str2nr(s:fsi_buffer))
 --       if fsiBuffer >= 0 and vim.fn.bufexists(fsiBuffer) then
 --         --"                 exec 'b' s:fsi_buffer
---         vim.fn.cmd('b' .. tostring(fsiBuffer))
+--         vim.cmd('b' .. tostring(fsiBuffer))
 --         --"                 normal G
 --
 --         vim.cmd("normal G")
