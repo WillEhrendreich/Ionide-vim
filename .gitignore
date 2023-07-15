@@ -13,3 +13,5 @@ fsac.zip
 .luacheckrc
 .editorconfig
 lua/ionide/multiSolutionExampleResponse.json
+oldIndent.vim
+.vscode

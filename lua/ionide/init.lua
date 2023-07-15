@@ -1000,13 +1000,13 @@ M["fsharp/workspacePeek"] = function(error, result, context, config)
               end
               local cwd = vim.fs.normalize(vim.fn.getcwd())
               if directory == cwd then
-              -- M.notify("WorkspacePeek directory \n"
-              --   ..
-              --   directory
-              --   ..
-              --   "\nEquals current working directory\n"
-              --   .. cwd
-              -- )
+                -- M.notify("WorkspacePeek directory \n"
+                --   ..
+                --   directory
+                --   ..
+                --   "\nEquals current working directory\n"
+                --   .. cwd
+                -- )
               else
                 M.notify(
                   "WorkspacePeek directory \n" .. directory .. "Does not equal current working directory\n" .. cwd
@@ -1066,12 +1066,12 @@ M["fsharp/workspacePeek"] = function(error, result, context, config)
                   end)
                 end
 
-              -- if solutionToLoad ~= nil then
-              --   M.notify("solutionToLoad is set to " ..
-              --     solutionToLoad .. " \nthough currently that doesn't do anything..")
-              -- else
-              --   M.notify("for some reason solution to load was null. .... why?")
-              -- end
+                -- if solutionToLoad ~= nil then
+                --   M.notify("solutionToLoad is set to " ..
+                --     solutionToLoad .. " \nthough currently that doesn't do anything..")
+                -- else
+                --   M.notify("for some reason solution to load was null. .... why?")
+                -- end
               else
                 M.notify("Only one solution in workspace path, projects should be loaded already. ")
               end
@@ -1538,10 +1538,14 @@ function M.RegisterAutocmds()
     group = grp("FSharp_ClearCodeLens", { clear = true }),
     pattern = "*.fs,*.fsi,*.fsx",
     callback = function(args)
-      if
-        M.MergedConfig.settings.FSharp.codeLenses.references.enabled == true
-        or M.MergedConfig.settings.FSharp.codeLenses.references.enabled == true
-      then
+      local codelensConfig = {
+        references = { enabled = false },
+        signature = { enabled = false },
+      }
+      if M.MergedConfig.settings and M.MergedConfig.settings.FSharp and M.MergedConfig.settings.FSharp.codeLenses then
+        codelensConfig = M.MergedConfig.settings.FSharp.codeLenses
+      end
+      if codelensConfig.references.enabled == true or codelensConfig.signature.enabled == true then
         vim.defer_fn(function()
           vim.lsp.codelens.clear()
           vim.lsp.codelens.refresh()
@@ -2050,11 +2054,34 @@ end
 --" endfunction
 
 local function getFsiCommand()
-  local cmd = M.MergedConfig.IonideNvimSettings.FsiCommand or "dotnet fsi"
-  local ep = M.MergedConfig.settings.FSharp.fsiExtraParameters or {}
-  for _, x in pairs(ep) do
-    cmd = cmd .. " " .. x
+  local cmd = "dotnet fsi"
+
+  if M.MergedConfig.IonideNvimSettings and M.MergedConfig.IonideNvimSettings.FsiCommand then
+    cmd = M.MergedConfig.IonideNvimSettings.FsiCommand or "dotnet fsi"
   end
+  local ep = {}
+  if
+    M.MergedConfig.settings
+    and M.MergedConfig.settings.FSharp
+    and M.MergedConfig.settings.FSharp.fsiExtraParameters
+  then
+    ep = M.MergedConfig.settings.FSharp.fsiExtraParameters or {}
+  end
+  if #ep > 0 then
+    local joined = table.join(ep, " ")
+    cmd = cmd .. " " .. joined
+  end
+
+  return cmd
+end
+
+local function getFsiWindowCommand()
+  local cmd = "botright 10new"
+
+  if M.MergedConfig.IonideNvimSettings and M.MergedConfig.IonideNvimSettings.FsiWindowCommand then
+    cmd = M.MergedConfig.IonideNvimSettings.FsiWindowCommand or "botright 10new"
+  end
+
   return cmd
 end
 
@@ -2071,7 +2098,8 @@ function M.OpenFsi(returnFocus)
       --"             let current_win = win_getid()
       local currentWin = vim.fn.win_getid()
       --"             execute g:fsharp#fsi_window_command
-      vim.fn.execute(M.MergedConfig.IonideNvimSettings.FsiWindowCommand or "botright 10new")
+
+      vim.fn.execute(getFsiWindowCommand())
       --"             if s:fsi_width  > 0 | execute 'vertical resize' s:fsi_width | endif
       if fsiWidth > 0 then
         vim.fn.execute("vertical resize " .. fsiWidth)
@@ -2438,7 +2466,12 @@ end
 ---@param text string
 function M.SendFsi(text)
   -- M.notify("Text being sent to FSI:\n" .. text)
-  local openResult = M.OpenFsi(not M.MergedConfig.IonideNvimSettings.FsiFocusOnSend or false)
+
+  local focusOnSend = false
+  if M.MergedConfig.IonideNvimSettings and M.MergedConfig.IonideNvimSettings.FsiFocusOnSend then
+    focusOnSend = M.MergedConfig.IonideNvimSettings.FsiFocusOnSend
+  end
+  local openResult = M.OpenFsi(focusOnSend)
   -- M.notify("result of openfsi function is " .. vim.inspect(openResult))
   if not openResult then
     openResult = 1
@@ -2557,22 +2590,18 @@ end
 --                  |:command-preview|
 
 uc("IonideUpdateServerConfiguration", function()
-  M.UpdateServerConfig(M.MergedConfig.settings.FSharp)
+  if M.MergedConfig.settings and M.MergedConfig.settings and M.MergedConfig.settings.FSharp then
+    M.UpdateServerConfig(M.MergedConfig.settings.FSharp)
+  else
+    M.UpdateServerConfig(M.DefaultServerSettings)
+  end
 end, { desc = "Notify FSAC of the settings in merged settings table" })
 
 uc("IonideTestDocumentationForSymbolRequestParsing", function()
   M.CallFSharpDocumentationSymbol("T:System.String.Trim", "netstandard")
 end, { desc = "testing out the call to the symbol request from a hover" })
-uc(
-  "IonideSendCurrentLineToFSI",
-  M.SendLineToFsi(),
-  { desc = "Ionide - Send Current line's text to FSharp Interactive" }
-)
-uc(
-  "IonideSendWholeBufferToFSI",
-  M.SendAllToFsi(),
-  { desc = "Ionide - Send Current buffer's text to FSharp Interactive" }
-)
+uc("IonideSendCurrentLineToFSI", M.SendLineToFsi, { desc = "Ionide - Send Current line's text to FSharp Interactive" })
+uc("IonideSendWholeBufferToFSI", M.SendAllToFsi, { desc = "Ionide - Send Current buffer's text to FSharp Interactive" })
 uc("IonideToggleFSI", M.ToggleFsi, { desc = "Ionide - Toggle FSharp Interactive" })
 uc("IonideQuitFSI", M.QuitFsi, { desc = "Ionide - Quit FSharp Interactive" })
 uc("IonideResetFSI", M.ResetFsi, { desc = "Ionide - Reset FSharp Interactive" })
@@ -2606,10 +2635,14 @@ uc("IonideShowAllLoadedProjectFolders", function()
   M.notify(table.concat(M.projectFolders, "\n"))
 end, { desc = "Show all currently loaded project folders" })
 uc("IonideWorkspacePeek", function()
+  local settingsFSharp = M.DefaultServerSettings
+  if M.MergedConfig.settings and M.MergedConfig.settings.FSharp then
+    settingsFSharp = M.MergedConfig.settings.FSharp
+  end
   M.CallFSharpWorkspacePeek(
     M.getIonideClientConfigRootDirOrCwd(),
-    M.MergedConfig.settings.FSharp.workspaceModePeekDeepLevel or 3,
-    M.MergedConfig.settings.FSharp.excludeProjectDirectories or {}
+    settingsFSharp.workspaceModePeekDeepLevel or 3,
+    settingsFSharp.excludeProjectDirectories or {}
   )
 end, { desc = "Request a workspace peek from Lsp" })
 
