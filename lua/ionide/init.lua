@@ -2068,7 +2068,7 @@ local function getFsiCommand()
     ep = M.MergedConfig.settings.FSharp.fsiExtraParameters or {}
   end
   if #ep > 0 then
-    local joined = table.join(ep, " ")
+    local joined = vim.fn.join(ep, " ")
     cmd = cmd .. " " .. joined
   end
 
