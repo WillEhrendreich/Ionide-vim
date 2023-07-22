@@ -2594,13 +2594,19 @@ end
 --                • preview: (function) Preview callback for 'inccommand'
 --                  |:command-preview|
 
-uc("IonideUpdateServerConfiguration", function()
-  if M.MergedConfig.settings and M.MergedConfig.settings and M.MergedConfig.settings.FSharp then
-    M.UpdateServerConfig(M.MergedConfig.settings.FSharp)
-  else
-    M.UpdateServerConfig(M.DefaultServerSettings)
-  end
-end, { desc = "Notify FSAC of the settings in merged settings table" })
+-- uc("IonideUpdateServerConfiguration", function(opts)
+--   -- if type(opts.fargs) == "string" then
+--   -- elseif type(opts.fargs) == "table" then
+--
+--   -- M.notify("entered setup for ionide: passed in config is  " .. vim.inspect(M.PassedInConfig))
+--   M.MergedConfig = vim.tbl_deep_extend("force", M.DefaultLspConfig, M.PassedInConfig)
+--   -- M.notify("entered setup for ionide: passed in config merged with defaults gives us " .. vim.inspect(M.MergedConfig))
+--   if M.MergedConfig.settings and M.MergedConfig.settings and M.MergedConfig.settings.FSharp then
+--     M.UpdateServerConfig(M.MergedConfig.settings.FSharp)
+--   else
+--     M.UpdateServerConfig(M.DefaultServerSettings)
+--   end
+-- end, { desc = "Notify FSAC of the settings in merged settings table" })
 
 uc("IonideTestDocumentationForSymbolRequestParsing", function()
   M.CallFSharpDocumentationSymbol("T:System.String.Trim", "netstandard")
