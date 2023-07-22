@@ -1,250 +1,101 @@
--- TODO: port indent code to lua. 
---" Vim indent file
---" Language:     FSharp
---" Maintainers:  Jean-Francois Yuen   <jfyuen@happycoders.org>
---"               Mike Leary           <leary@nwlink.com>
---"               Markus Mottl         <markus.mottl@gmail.com>
---"               Rudi Grinberg        <rudi.grinberg@gmail.com>
---"               Gregor Uhlenheuer    <kongo2002@gmail.com>
---" Last Change:  2013 Jun 29
---"               2005 Jun 25 - Fixed multiple bugs due to 'else\nreturn ind' working
---"               2005 May 09 - Added an option to not indent OCaml-indents specially (MM)
---"               2013 June   - commented textwidth (Marc Weber)
---"               2014 August - Ported to F#
---"               2014 August - F# specific cleanup
---"
---" Marc Weber's comment: This file may contain a lot of (very custom) stuff
---" which eventually should be moved somewhere else ..
-
---" Only load this indent file when no other was loaded.
-
---if exists("b:did_indent")
---    finish
---endif
---let b:did_indent = 1
-
---setlocal indentexpr=GetFsharpIndent()
---setlocal indentkeys+=0=and,0=class,0=constraint,0=done,0=else,0=end,0=exception,0=external,0=if,0=in,0=include,0=inherit,0=let,0=method,0=open,0=then,0=type,0=val,0=with,0;;,0>\],0\|\],0>},0\|,0},0\],0)
-
---" Only define the function once.
---if exists("*GetFsharpIndent")
---    finish
---endif
-
---" Skipping pattern, for comments
---function! s:GetLineWithoutFullComment(lnum)
---    let lnum = prevnonblank(a:lnum - 1)
---    let lline = substitute(getline(lnum), '(\*.*\*)\s*$', '', '')
---    while lline =~ '^\s*$' && lnum > 0
---        let lnum = prevnonblank(lnum - 1)
---        let lline = substitute(getline(lnum), '(\*.*\*)\s*$', '', '')
---    endwhile
---    return lnum
---endfunction
-
---" Indent for ';;' to match multiple 'let'
---function! s:GetInd(lnum, pat, lim)
---    let llet = search(a:pat, 'bW')
---    let old = indent(a:lnum)
---    while llet > 0
---        let old = indent(llet)
---        let nb = s:GetLineWithoutFullComment(llet)
---        if getline(nb) =~ a:lim
---            return old
---        endif
---        let llet = search(a:pat, 'bW')
---    endwhile
---    return old
---endfunction
-
---" Indent pairs
---function! s:FindPair(pstart, pmid, pend)
---    call search(a:pend, 'bW')
---    return indent(searchpair(a:pstart, a:pmid, a:pend, 'bWn', 'synIDattr(synID(line("."), col("."), 0), "name") =~? "string\\|comment"'))
---endfunction
-
---" Indent 'let'
---function! s:FindLet(pstart, pmid, pend)
---    call search(a:pend, 'bW')
---    return indent(searchpair(a:pstart, a:pmid, a:pend, 'bWn', 'synIDattr(synID(line("."), col("."), 0), "name") =~? "string\\|comment" || getline(".") =~ "^\\s*let\\>.*=.*\\<in\\s*$" || getline(prevnonblank(".") - 1) =~ s:beflet'))
---endfunction
-
---function! GetFsharpIndent()
---    " Find a non-commented line above the current line.
---    let lnum = s:GetLineWithoutFullComment(v:lnum)
-
---    " At the start of the file use zero indent.
---    if lnum == 0
---        return 0
---    endif
-
---    let ind = indent(lnum)
---    let lline = substitute(getline(lnum), '(\*.*\*)\s*$', '', '')
-
---    " " Return single 'shiftwidth' after lines matching:
---    " if lline =~ '^\s*|.*->\s*$'
---    "     return ind + &sw
---    " endif
-
---    let line = getline(v:lnum)
-
---    " Indent if current line begins with 'end':
---    if line =~ '^\s*end\>'
---        return s:FindPair(s:module, '','\<end\>')
-
---        " Indent if current line begins with 'done' for 'do':
---    elseif line =~ '^\s*done\>'
---        return s:FindPair('\<do\>', '','\<done\>')
-
---        " Indent if current line begins with '}' or '>}':
---    elseif line =~ '^\s*\(\|>\)}'
---        return s:FindPair('{', '','}')
-
---        " Indent if current line begins with ']', '|]' or '>]':
---    elseif line =~ '^\s*\(\||\|>\)\]'
---        return s:FindPair('\[', '','\]')
-
---        " Indent if current line begins with ')':
---    elseif line =~ '^\s*)'
---        return s:FindPair('(', '',')')
-
---        " Indent if current line begins with 'let':
---    elseif line =~ '^\s*let\>'
---        if lline !~ s:lim . '\|' . s:letlim . '\|' . s:beflet
---            return s:FindLet(s:type, '','\<let\s*$')
---        endif
-
---        " Indent if current line begins with 'class' or 'type':
---    elseif line =~ '^\s*\(class\|type\)\>'
---        if lline !~ s:lim . '\|\<and\s*$\|' . s:letlim
---            return s:FindLet(s:type, '','\<\(class\|type\)\s*$')
---        endif
-
---        " Indent for pattern matching:
---    elseif line =~ '^\s*|'
---        if lline !~ '^\s*\(|[^\]]\|\(match\|type\|with\)\>\)\|\<\(function\|private\|with\)\s*$'
---            call search('|', 'bW')
---            return indent(searchpair('^\s*\(match\|type\)\>\|\<\(function\|private\|with\)\s*$', '', '^\s*|', 'bWn', 'synIDattr(synID(line("."), col("."), 0), "name") =~? "string\\|comment" || getline(".") !~ "^\\s*|.*->"'))
---        endif
-
---        " Indent if current line begins with ';;':
---    elseif line =~ '^\s*;;'
---        if lline !~ ';;\s*$'
---            return s:GetInd(v:lnum, s:letpat, s:letlim)
---        endif
-
---        " Indent if current line begins with 'in':
---    elseif line =~ '^\s*in\>'
---        if lline !~ '^\s*\(let\|and\)\>'
---            return s:FindPair('\<let\>', '', '\<in\>')
---        endif
-
---        " Indent if current line begins with 'else':
---    elseif line =~ '^\s*else\>'
---        if lline !~ '^\s*\(if\|then\)\>'
---            return s:FindPair('\<if\>', '', '\<else\>')
---        endif
-
---        " Indent if current line begins with 'then':
---    elseif line =~ '^\s*then\>'
---        if lline !~ '^\s*\(if\|else\)\>'
---            return s:FindPair('\<if\>', '', '\<then\>')
---        endif
-
---        " Indent if current line begins with 'and':
---    elseif line =~ '^\s*and\>'
---        if lline !~ '^\s*\(and\|let\|type\)\>\|\<end\s*$'
---            return ind - &sw
---        endif
-
---        " Indent if current line begins with 'with':
---    elseif line =~ '^\s*with\>'
---        if lline !~ '^\s*\(match\|try\)\>'
---            return s:FindPair('\<\%(match\|try\)\>', '','\<with\>')
---        endif
-
---        " Indent if current line begins with 'exception', 'external', 'include' or
---        " 'open':
---    elseif line =~ '^\s*\(exception\|external\|include\|open\)\>'
---        if lline !~ s:lim . '\|' . s:letlim
---            call search(line)
---            return indent(search('^\s*\(\(exception\|external\|include\|open\|type\)\>\|val\>.*:\)', 'bW'))
---        endif
-
---        " Indent if current line begins with 'val':
---    elseif line =~ '^\s*val\>'
---        if lline !~ '^\s*\(exception\|external\|include\|open\)\>\|' . s:obj . '\|' . s:letlim
---            return indent(search('^\s*\(\(exception\|include\|initializer\|method\|open\|type\|val\)\>\|external\>.*:\)', 'bW'))
---        endif
-
---        " Indent if current line begins with 'constraint', 'inherit', 'initializer'
---        " or 'method':
---    elseif line =~ '^\s*\(constraint\|inherit\|initializer\|method\)\>'
---        if lline !~ s:obj
---            return indent(search('\<\(object\|object\s*(.*)\)\s*$', 'bW')) + &sw
---        endif
-
---    endif
-
---    " Add a 'shiftwidth' after lines ending with:
---    if lline =~ '\(:\|=\|->\|<-\|(\|\[\|{\|{<\|\[|\|\[<\|\<\(begin\|do\|else\|fun\|function\|functor\|if\|initializer\|object\|private\|sig\|struct\|then\|try\)\|\<object\s*(.*)\)\s*$'
---        let ind = ind + &sw
-
---        " Back to normal indent after lines ending with ';;':
---    elseif lline =~ ';;\s*$' && lline !~ '^\s*;;'
---        let ind = s:GetInd(v:lnum, s:letpat, s:letlim)
-
---        " Back to normal indent after lines ending with 'end':
---    elseif lline =~ '\<end\s*$'
---        let ind = s:FindPair(s:module, '','\<end\>')
-
---        " Back to normal indent after lines ending with 'in':
---    elseif lline =~ '\<in\s*$' && lline !~ '^\s*in\>'
---        let ind = s:FindPair('\<let\>', '', '\<in\>')
-
---        " Back to normal indent after lines ending with 'done':
---    elseif lline =~ '\<done\s*$'
---        let ind = s:FindPair('\<do\>', '','\<done\>')
-
---        " Back to normal indent after lines ending with '}' or '>}':
---    elseif lline =~ '\(\|>\)}\s*$'
---        let ind = s:FindPair('{', '','}')
-
---        " Back to normal indent after lines ending with ']', '|]' or '>]':
---    elseif lline =~ '\(\||\|>\)\]\s*$'
---        let ind = s:FindPair('\[', '','\]')
-
---        " Back to normal indent after comments:
---    elseif lline =~ '\*)\s*$'
---        call search('\*)', 'bW')
---        let ind = indent(searchpair('(\*', '', '\*)', 'bWn', 'synIDattr(synID(line("."), col("."), 0), "name") =~? "string"'))
-
---        " Back to normal indent after lines ending with ')':
---    elseif lline =~ ')\s*$'
---        let ind = s:FindPair('(', '',')')
-
---        " If this is a multiline comment then align '*':
---    elseif lline =~ '^\s*(\*' && line =~ '^\s*\*'
---        let ind = ind + 1
-
---    else
---        " Don't change indentation of this line
---        " for new lines (indent==0) use indentation of previous line
-
---        " This is for preventing removing indentation of these args:
---        "   let f x =
---        "     let y = x + 1 in
---        "     Printf.printf
---        "       "o"           << here
---        "       "oeuth"       << don't touch indentation
-
---        let i = indent(v:lnum)
---        return i == 0 ? ind : i
-
---    endif
-
---    return ind
-
---endfunction
-
---" vim: sw=4 et sts=4
+-- --translate this vimscript to lua:
+-- -- if exists("b:did_indent")
+-- --     finish
+-- -- end
+-- -- let b:did_indent = 1
+-- local M = {}
+--
+-- -- if vim.b.did_indent then
+-- --   return
+-- -- end
+-- -- vim.b.did_indent = 1
+-- --
+-- -- vim.api.nvim_buf_set_var(0, "indentexpr", function()
+-- --   GetFsharpIndent()
+-- -- end)
+-- -- vim.bo.indentkeys =
+-- --   [[0=and,0=class,0=constraint,0=done,0=else,0=end,0=exception,0=external,0=if,0=in,0=include,0=inherit,0=let,0=method,0=open,0=then,0=type,0=val,0=with,0;;,0>\],0\|\],0>},0\|,0},0\],0)]]
+-- --
+-- -- -- " Only define the function once.
+-- --
+-- -- if vim.b.did_indent then
+-- --   return
+-- -- end
+--
+-- function M.GetLineWithoutFullComment(lnum)
+--   lnum = vim.fn.prevnonblank(lnum - 1)
+--   local lline = vim.fn.getline(lnum):gsub([[(\*.*\*)\s*$]], "")
+--   while (lline:match([[^\s*$]]) == nil) and (lnum > 0) do
+--     lnum = vim.fn.prevnonblank(lnum - 1)
+--     lline = vim.fn.getline(lnum):gsub([[(\*.*\*)\s*$]], "")
+--   end
+--   return lnum
+-- end
+--
+-- function M.GetInd(lnum, pat, lim)
+--   local llet = vim.fn.search(pat, "bW")
+--   local old = vim.fn.indent(lnum)
+--   while llet > 0 do
+--     old = vim.fn.indent(llet)
+--     local nb = M.GetLineWithoutFullComment(llet)
+--     if vim.fn.getline(nb) ~= lim then
+--       return old
+--     end
+--     llet = vim.fn.search(pat, "bW")
+--   end
+--   return old
+-- end
+--
+-- -- Indent pairs
+-- function M.FindPair(pstart, pmid, pend)
+--   vim.api.nvim_command([[call search("]] .. pend .. [[", "bW")]])
+--   return vim.api.nvim_call_function("indent", {
+--     vim.api.nvim_call_function(
+--       "searchpair",
+--       { pstart, pmid, pend, "bWn", [[synIDattr(synID(line("."), col("."), 0), "name") =~? "string\\|comment"]] }
+--     ),
+--   })
+-- end
+--
+-- -- Indent 'let'
+-- function M.FindLet(pstart, pmid, pend)
+--   vim.api.nvim_command([[call search("]] .. pend .. [[", "bW")]])
+--   return vim.api.nvim_call_function("indent", {
+--     vim.api.nvim_call_function("searchpair", {
+--       pstart,
+--       pmid,
+--       pend,
+--       "bWn",
+--       [[synIDattr(synID(line("."), col("."), 0), "name") =~? "string\\|comment" || getline(".") =~ "^\\s*let\\>.*=.*\\<in\\s*$" || getline(prevnonblank(".") - 1) =~ s.beflet"]],
+--     }),
+--   })
+-- end
+-- local function indent(lineNum)
+--   return vim.fn.indent(lineNum)
+-- end
+--
+-- local function searchpair(pstart, pmid, pend, flags, skip, stopline, timeout)
+--   return vim.fn.searchpair(pstart, pmid, pend, flags, skip, stopline, timeout)
+-- end
+--
+-- local function getline(lineNum)
+--   return vim.fn.getline(lineNum)
+-- end
+-- -- " Indent "let") then
+-- function M.GetFsharpIndent()
+--   -- " Find a non-commented line above the current line.
+--   local lnum = M.GetLineWithoutFullComment(lnum)
+--
+--   --     " At the start of the file use zero indent.
+--   if lnum == 0 then
+--     return 0
+--   end
+--
+--   local ind = indent(lnum)
+--   local lline = string.gsub(getline(lnum), [[(\*.*\*)\s*]], "", "")
+--
+--   return ind
+-- end
+--
+-- return M
+-- -- " vim: sw=4 et sts=
