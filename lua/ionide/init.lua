@@ -656,7 +656,6 @@ M.DefaultNvimSettings = {
   LspAutoSetup = false,
   LspRecommendedColorScheme = false,
   FsiVscodeKeymaps = true,
-  Statusline = "Ionide",
   StatusLine = "Ionide",
   AutocmdEvents = {
     "LspAttach",
