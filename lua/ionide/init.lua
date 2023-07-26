@@ -301,6 +301,8 @@ end
 ---@field FsiVscodeKeymaps boolean
 ---@field StatusLine string
 ---@field AutocmdEvents table<string>
+---@field EnableFsiStdOutTeeToFile boolean
+---@field FsiStdOutFileName string
 ---@field FsiKeymapSend string
 ---@field FsiKeymapToggle string
 
@@ -653,9 +655,11 @@ M.DefaultNvimSettings = {
   FsiKeymap = "vscode",
   FsiWindowCommand = "botright 10new",
   FsiFocusOnSend = false,
+  EnableFsiStdOutTeeToFile = false,
   LspAutoSetup = false,
   LspRecommendedColorScheme = false,
   FsiVscodeKeymaps = true,
+  FsiStdOutFileName = "",
   StatusLine = "Ionide",
   AutocmdEvents = {
     "LspAttach",
@@ -2075,9 +2079,22 @@ local function getFsiCommand()
     ep = M.MergedConfig.settings.FSharp.fsiExtraParameters or {}
   end
   if #ep > 0 then
-    local joined = vim.fn.join(ep, " ")
-    cmd = cmd .. " " .. joined
+    cmd = cmd .. " " .. vim.fn.join(ep, " ")
   end
+  if
+    M.MergedConfig.IonideNvimSettings
+    and M.MergedConfig.IonideNvimSettings.EnableFsiStdOutTeeToFile
+    and M.MergedConfig.IonideNvimSettings.EnableFsiStdOutTeeToFile == true
+  then
+    if M.MergedConfig.IonideNvimSettings and M.MergedConfig.IonideNvimSettings.FsiStdOutFileName then
+      if M.MergedConfig.IonideNvimSettings.FsiStdOutFileName ~= "" then
+        cmd = cmd .. " | tee '" .. (M.MergedConfig.IonideNvimSettings.FsiStdOutFileName or "./fsiOutputFile.txt") .. "'"
+      else
+        cmd = cmd .. " | tee '" .. "./fsiOutputFile.txt" .. "'"
+      end
+    end
+  end
+
   return cmd
 end
 
