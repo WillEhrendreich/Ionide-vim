@@ -2467,34 +2467,27 @@ end
 --" endfunction
 -- "
 
----sends text to FSI
----@param text string
-function M.SendFsi(text)
-  -- M.notify("Text being sent to FSI:\n" .. text)
-
+---sends lines to FSI
+---@param lines string[]
+function M.SendFsi(lines)
   local focusOnSend = false
   if M.MergedConfig.IonideNvimSettings and M.MergedConfig.IonideNvimSettings.FsiFocusOnSend then
-    focusOnSend = M.MergedConfig.IonideNvimSettings.FsiFocusOnSend
+    focusOnSend = M.MergedConfig.IonideNvimSettings.FsiFocusOnSend or false
   end
   local openResult = M.OpenFsi(focusOnSend)
-  -- M.notify("result of openfsi function is " .. vim.inspect(openResult))
   if not openResult then
     openResult = 1
-    -- M.notify("changing result to 1 and hoping for the best. lol. " .. vim.inspect(openResult))
   end
 
   if openResult > 0 then
-    if vim.fn.has("nvim") then
-      vim.fn.chansend(fsiJob, text .. "\n" .. ";;" .. "\n")
-    else
-      vim.api.nvim_call_function("term_sendkeys", { FsiBuffer, text .. "\\<cr>" .. ";;" .. "\\<cr>" })
-      vim.api.nvim_call_function("term_wait", { FsiBuffer })
-    end
+    local toBeSent = vim.list_extend(lines, { "", ";;", "" })
+    -- M.notify("Text being sent to FSI:\n" .. vim.inspect(toBeSent))
+    vim.fn.chansend(fsiJob, toBeSent)
   end
 end
 
 function M.GetCompleteBuffer()
-  return vim.fn.join(vim.api.nvim_buf_get_lines(vim.api.nvim_get_current_buf(), 1, -1, false), "\n")
+  return vim.api.nvim_buf_get_lines(vim.api.nvim_get_current_buf(), 1, -1, false)
 end
 
 function M.SendSelectionToFsi()
@@ -2504,9 +2497,9 @@ function M.SendSelectionToFsi()
   -- vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<esc>", true, false, true), 'x', true)
   -- vim.cmd(':normal' .. ' j')
   -- vim.cmd('normal' .. vim.fn.len(lines) .. 'j')
-  local text = vim.fn.join(lines, "\n")
+  -- local text = vim.fn.join(lines, "\n")
   -- M.notify("fsi send selection " .. text)
-  M.SendFsi(text)
+  M.SendFsi(lines)
 
   -- local line_end, _ = unpack(vim.fn.getpos("'>"), 2)
 
@@ -2526,7 +2519,7 @@ function M.SendLineToFsi()
     vim.api.nvim_win_set_cursor(0, { line + 1, 0 })
   end
   -- M.notify("fsi send line " .. text)
-  M.SendFsi(text)
+  M.SendFsi({ text })
   -- vim.cmd 'normal j'
 end
 
